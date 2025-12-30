@@ -1,7 +1,6 @@
 import uuid
 
 import pytest
-from fastapi.encoders import jsonable_encoder
 from mountory_core.security import verify_password
 from mountory_core.testing.user import CreateUserProtocol
 from mountory_core.testing.utils import random_email, random_lower_string
@@ -159,7 +158,7 @@ async def test_get_user(
     user_2 = await async_db.get(User, user.id)
     assert user_2
     assert user.email == user_2.email
-    assert jsonable_encoder(user) == jsonable_encoder(user_2)
+    assert user == user_2
 
 
 @pytest.mark.anyio
