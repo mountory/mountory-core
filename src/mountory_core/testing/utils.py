@@ -3,22 +3,22 @@ import string
 import uuid
 from collections.abc import Callable, Generator, Sequence
 from contextlib import ExitStack, contextmanager
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import patch
 
 from pydantic import AnyUrl, EmailStr, HttpUrl
 
 
-def random_lower_string() -> str:
-    return "".join(random.choices(string.ascii_lowercase, k=32))
+def random_lower_string(length: int = 32) -> str:
+    return "".join(random.choices(string.ascii_lowercase, k=length))
 
 
 def random_email() -> EmailStr:
     return f"{random_lower_string()}@{random_lower_string()}.com"
 
 
-def random_url() -> str:
-    return AnyUrl(f"http://{random_lower_string()}.com").unicode_string()
+def random_url(scheme: Literal["http", "https"] = "http") -> str:
+    return AnyUrl(f"{scheme}://{random_lower_string(15)}.com").unicode_string()
 
 
 def random_http_url() -> str:

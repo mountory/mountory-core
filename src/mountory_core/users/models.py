@@ -17,7 +17,7 @@ class UserBase(SQLModel):
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     is_active: bool = True
     is_superuser: bool = False
-    full_name: FullNameField
+    full_name: FullNameField = None
 
 
 # Properties to receive via API on creation
@@ -32,7 +32,7 @@ class UserRegister(SQLModel):
     password: str = Field(
         min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH
     )
-    full_name: FullNameField
+    full_name: FullNameField = None
 
 
 # Properties to receive via API on update, all are optional

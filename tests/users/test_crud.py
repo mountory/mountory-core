@@ -1,3 +1,4 @@
+from unittest.mock import AsyncMock
 import uuid
 
 import pytest
@@ -9,6 +10,26 @@ from mountory_core.users.models import User, UserCreate, UserUpdate
 from sqlalchemy import func
 from sqlmodel import Session, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+
+@pytest.mark.anyio
+async def test_create_user_with_commit() -> None:
+    db = AsyncMock(spec=AsyncSession)
+    _create = UserCreate(email=random_email(), password=random_lower_string())
+
+    await crud.create_user(session=db, user_create=_create, commit=True)
+
+    db.commit.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_create_user_without_commit() -> None:
+    db = AsyncMock(spec=AsyncSession)
+    _create = UserCreate(email=random_email(), password=random_lower_string())
+
+    await crud.create_user(session=db, user_create=_create, commit=False)
+
+    db.commit.assert_not_called()
 
 
 @pytest.mark.anyio
