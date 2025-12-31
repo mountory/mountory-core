@@ -405,7 +405,7 @@ async def test_set_manufacturer_access(
     assert (await async_db.exec(stmt)).one_or_none() is not None
 
     # cleanup
-    await async_db.execute(
+    await async_db.exec(
         delete(ManufacturerAccess).filter_by(
             user_id=user.id, manufacturer_id=existing.id, role=access_role
         )
@@ -444,7 +444,7 @@ async def test_set_manufacturer_access_upsert_existing(
     assert (await async_db.exec(stmt)).one_or_none() is not None
 
     # cleanup
-    await async_db.execute(
+    await async_db.exec(
         delete(ManufacturerAccess).filter_by(
             user_id=user.id, manufacturer_id=existing.id, role=access_role
         )
