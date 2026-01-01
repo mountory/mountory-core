@@ -1,3 +1,9 @@
+from pydantic import StringConstraints
+from typing import Annotated
+from mountory_core.types import (
+    NoneIfEmptyStrValidator,
+    DefaultIfNoneValidator,
+)
 import typing
 import uuid
 from datetime import datetime
@@ -37,12 +43,23 @@ class TransactionBase(SQLModel):
         description="Amount of the transaction. Negative values are interpreted as expense.",
     )
     category: TransactionCategory | None = Field(default=None)
-    description: str | None = Field(
-        default=None, max_length=2048, description="Description of the transactions."
-    )
-    note: str | None = Field(
-        default=None, max_length=1024, description="Short note of the transaction."
-    )
+    description: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="Description of the transactions.",
+        ),
+        DefaultIfNoneValidator,
+        NoneIfEmptyStrValidator,
+        StringConstraints(max_length=2048),
+    ] = None
+    note: Annotated[
+        str | None,
+        Field(default=None, description="Short note of the transaction."),
+        DefaultIfNoneValidator,
+        NoneIfEmptyStrValidator,
+        StringConstraints(max_length=1024),
+    ] = None
 
 
 # Database model

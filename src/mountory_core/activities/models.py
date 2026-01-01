@@ -1,8 +1,9 @@
+from mountory_core.types import DefaultIfEmptyStrValidator
 import uuid
 from datetime import datetime, timedelta
 from typing import Annotated
 
-from pydantic import PrivateAttr
+from pydantic import PrivateAttr, StringConstraints
 from sqlalchemy import Column, SQLColumnExpression, func
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlmodel import Field, Relationship, SQLModel, col, select
@@ -25,17 +26,23 @@ from .types import (
     TZDateTime,
 )
 
-ActivityTitleField = Annotated[str, Field(max_length=255)]
+ActivityTitleField = Annotated[
+    str, Field(description="Activity title."), StringConstraints(max_length=255)
+]
 ActivityLocationIdField = Annotated[
     LocationId | None, Field(default=None, foreign_key="location.id")
 ]
-ActivityDescriptionField = Annotated[str | None, Field(default=None, max_length=2048)]
 
 
 # Shared properties
 class ActivityBase(SQLModel):
     title: ActivityTitleField
-    description: str | None = Field(default=None, max_length=2048)
+    description: Annotated[
+        str | None,
+        Field(default=None, description="Description of the activity."),
+        StringConstraints(max_length=2048),
+        DefaultIfEmptyStrValidator,
+    ] = None
     start: datetime | None = Field(default=None, sa_column=Column(TZDateTime))
     duration: timedelta | None = Field(default=None)
 
