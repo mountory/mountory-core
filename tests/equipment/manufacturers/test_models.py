@@ -17,12 +17,39 @@ def test_manufacturer_base_defaults() -> None:
     assert base.website is None
 
 
-@pytest.mark.parametrize("value", ("", None))
-def test_manufacturer_base_optionals(value: str | None) -> None:
-    base = ManufacturerBase(short_name=value, description=value, website=value)
+def test_manufacturer_base_short_name_empty_str_is_none() -> None:
+    base = ManufacturerBase(short_name="")
 
     assert base.short_name is None
+
+
+def test_manufacturer_base_short_name_none_is_none() -> None:
+    base = ManufacturerBase(short_name=None)
+
+    assert base.short_name is None
+
+
+def test_manufacturer_base_description_empty_str_is_none() -> None:
+    base = ManufacturerBase(description="")
+
     assert base.description is None
+
+
+def test_manufacturer_base_descriptoin_none_is_none() -> None:
+    base = ManufacturerBase(description=None)
+
+    assert base.description is None
+
+
+def test_manufacturer_base_website_empty_str_is_none() -> None:
+    base = ManufacturerBase(website="")
+
+    assert base.website is None
+
+
+def test_manufacturer_base_website_none_is_none() -> None:
+    base = ManufacturerBase(website=None)
+
     assert base.website is None
 
 

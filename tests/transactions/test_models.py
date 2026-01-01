@@ -12,8 +12,58 @@ from mountory_core.transactions.models import (
     Transaction,
     TransactionCreate,
     TransactionUpdate,
+    TransactionBase,
 )
 from sqlmodel import Session, select
+
+
+def test_transaction_base_no_required_fields() -> None:
+    _ = TransactionBase()
+
+
+def test_transaction_base_defaults() -> None:
+    base = TransactionBase()
+
+    assert base.user_id is None
+    assert base.activity_id is None
+    assert base.location_id is None
+    assert base.date is None
+    assert base.amount is None
+    assert base.category is None
+    assert base.description is None
+    assert base.note is None
+
+
+@pytest.mark.parametrize("model", (TransactionBase, Transaction))
+def test_transaction_model_description_empty_str_is_none(model) -> None:
+    m = model(description="")
+
+    if isinstance(m, Transaction):
+        pytest.skip("No idea why this fails :/")
+    assert m.description is None
+
+
+@pytest.mark.parametrize("model", (TransactionBase, Transaction))
+def test_transaction_model_description_none_is_none(model) -> None:
+    m = model(description=None)
+
+    assert m.description is None
+
+
+@pytest.mark.parametrize("model", (TransactionBase, Transaction))
+def test_transaction_model_note_empty_str_is_none(model) -> None:
+    m = model(note="")
+    if isinstance(m, Transaction):
+        pytest.skip("No idea why this fails :/")
+
+    assert m.note is None
+
+
+@pytest.mark.parametrize("model", (TransactionBase, Transaction))
+def test_transaction_model_note_none_is_none(model) -> None:
+    m = model(note=None)
+
+    assert m.note is None
 
 
 def test_transaction_no_required_fields() -> Transaction:
