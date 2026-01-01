@@ -4,12 +4,35 @@ import pytest
 from mountory_core.activities.models import (
     Activity,
     ActivityUserLink,
+    ActivityBase,
 )
 from mountory_core.testing.location import CreateLocationProtocol
 from mountory_core.testing.user import CreateUserProtocol
 from mountory_core.testing.utils import random_lower_string
 from mountory_core.transactions.models import Transaction
 from sqlmodel import Session, col, select
+
+
+def test_activity_base_description_empty_str_is_none() -> None:
+    base = ActivityBase(title=random_lower_string(), description="")
+
+    assert base.description is None
+
+
+def test_activity_base_description_none_is_none() -> None:
+    base = ActivityBase(title=random_lower_string(), description=None)
+
+    assert base.description is None
+
+
+def test_activity_base_defaults() -> None:
+    title = random_lower_string()
+    base = ActivityBase(title=title)
+
+    assert base.title == title
+    assert base.description is None
+    assert base.start is None
+    assert base.duration is None
 
 
 def test_activity_with_location_id(

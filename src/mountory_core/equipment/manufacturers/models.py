@@ -1,35 +1,32 @@
 import uuid
 from typing import Annotated
 
-from pydantic import BeforeValidator
+from pydantic import StringConstraints
 from sqlmodel import Field, SQLModel
 
 from mountory_core.equipment.manufacturers.types import (
     ManufacturerAccessRole,
     ManufacturerId,
 )
-from mountory_core.types import OptionalWebsiteField, parse_optional_str
+from mountory_core.types import OptionalWebsiteField, OptionalStr
 from mountory_core.users.types import UserId
 
-OptionalStr = Annotated[str | None, BeforeValidator(parse_optional_str)]
 ManufacturerNameField = Annotated[
     str,
-    Field(
-        min_length=2,
-        max_length=255,
-        description="Name of the manufacturer.",
-    ),
+    Field(description="Name of the manufacturer."),
+    StringConstraints(min_length=2, max_length=255),
 ]
 
 
 class ManufacturerBase(SQLModel):
-    short_name: OptionalStr = Field(
-        default=None, description="Short name of the manufacturer.", min_length=1
-    )
-    description: OptionalStr = Field(
-        default=None, description="Description of the manufacturer."
-    )
-    website: Annotated[OptionalWebsiteField, BeforeValidator(parse_optional_str)] = None
+    short_name: Annotated[
+        OptionalStr,
+        Field(default=None, description="Short name of the manufacturer."),
+    ] = None
+    description: Annotated[
+        OptionalStr, Field(default=None, description="Description of the manufacturer.")
+    ] = None
+    website: OptionalWebsiteField = None
 
 
 class ManufacturerAccessBase(SQLModel):

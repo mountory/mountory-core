@@ -1,3 +1,5 @@
+from mountory_core.equipment.manufacturers.models import OptionalStr
+from pydantic import StringConstraints
 import uuid
 from typing import TYPE_CHECKING, Annotated
 
@@ -10,7 +12,11 @@ from mountory_core.locations.types import (
     LocationType,
     ParentPathDict,
 )
-from mountory_core.types import OptionalWebsiteField
+from mountory_core.types import (
+    OptionalWebsiteField,
+    NoneIfEmptyStrValidator,
+    DefaultIfNoneValidator,
+)
 from mountory_core.users.models import User
 from mountory_core.users.types import UserId
 
@@ -18,9 +24,13 @@ if TYPE_CHECKING:
     from mountory_core.transactions.models import Transaction
 
 
-LocationNameField = Annotated[str, Field(min_length=3, max_length=255)]
+LocationNameField = Annotated[str, StringConstraints(min_length=3, max_length=255)]
 AbbreviationField = Annotated[
-    str | None, Field(default=None, min_length=2, max_length=255)
+    OptionalStr,
+    Field(default=None),
+    DefaultIfNoneValidator,
+    NoneIfEmptyStrValidator,
+    StringConstraints(min_length=2, max_length=255),
 ]
 
 
