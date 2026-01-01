@@ -1,12 +1,12 @@
 [project]
 name = "mountory-core"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "Core backend functionality of the mountory package."
 readme = "README.md"
 authors = [
     { name = "saltie2193", email = "saltie@protonmail.com" }
 ]
-requires-python = ">=3.12, <4"
+requires-python = ">=3.12, <3.14"
 dependencies = [
     "psycopg[binary]>=3.2.3,<4.0.0",
     "pwdlib[argon2,bcrypt]>=0.3.0,<1.0.0",
