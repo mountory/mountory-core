@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'src'
-      - 'tests'
+      - 'src/**'
+      - 'tests/**'
       - 'pyproject.toml'
       - 'uv.lock'
   pull_request:
@@ -14,8 +14,8 @@ on:
       - opened
       - synchronize
     paths:
-      - 'src'
-      - 'tests'
+      - 'src/**'
+      - 'tests/**'
       - 'pyproject.toml'
       - 'uv.lock'
 
