@@ -18,36 +18,50 @@ from mountory_core.users.types import UserId
 from mountory_core.util import create_filter_in_with_none
 
 
-def create_activity(*, session: Session, activity_create: ActivityCreate) -> Activity:
+def create_activity(
+    *, session: Session, data: ActivityCreate, commit: bool = True
+) -> Activity:
     """
     Creates an activity in the database based on the given `ActivityCreate` object.
 
-    Warning the `activity_crate.start` is expected to be timezone aware. If no timezone is set, the value will be assumed to be in `UTC`.
+    Warning the `activity_crate.start` is expected to be timezone aware.
+    If no timezone is set, the value will be assumed to be in `UTC`.
 
-    :param session:
-    :param activity_create:
-    :return:
+    :param session: Database session
+    :param data: ``ActivityCreate`` instance with data to create the activity with.
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: Created ``Activity``
     """
     activity = Activity.model_validate(
-        activity_create.model_dump(exclude={"location", "user_ids", "types"})
+        data.model_dump(exclude={"location", "user_ids", "types"})
     )
-    if activity_create.types:
+    if data.types:
         activity.type_associations = [
             ActivityTypeAssociation(activity_type=activity_type)
-            for activity_type in activity_create.types
+            for activity_type in data.types
         ]
 
-    for user_id in activity_create.user_ids or ():
+    for user_id in data.user_ids or ():
         session.add(ActivityUserLink(user_id=user_id, activity_id=activity.id))
     session.add(activity)
-    session.commit()
-    session.refresh(activity)
+    if commit:
+        session.commit()
+        session.refresh(activity)
     return activity
 
 
 def read_activity_by_id(
     *, session: Session, activity_id: ActivityId
 ) -> Activity | None:
+    """
+    Get an activity by its ID. Returns ``None`` if it does not exist.
+
+    :param session: Database session.
+    :param activity_id: ``ActivityId`` of the activity to get.
+
+    :return: ``Activity`` if it exists, else ``None``.
+    """
     stmt = select(Activity).filter_by(id=activity_id)
     return session.exec(stmt).one_or_none()
 
@@ -68,11 +82,12 @@ def read_activities(
     :param session: Database session
     :param skip: Number of entries to skip when returning results
     :param limit: Number of entries to return
-    :param user_ids: Optional user ids to filter activities. Empty set will be handled like it's not set. (default=``None``)
+    :param user_ids: Optional user ids to filter activities. Empty set will be handled like it's not set. (Default: ``None``)
     :param location_ids: Optional location ids to filter activities.
     :param parent_ids: Optional parent ids to filter activities.
     :param activity_types: Optional activity types to filter activities.
 
+    :return ``tuple``  of a list of activities and the total count of activities matching the search parameters.
     """
     stmt = select(Activity)
     count_stmt = select(func.count()).select_from(Activity)
@@ -128,6 +143,8 @@ def read_activities_by_user_id(
     :param user_id: ``UserId`` to filter activities.
     :param skip: Number of entries to skip when returning results
     :param limit: Number of entries to return
+
+    :return List of activities limited to ``limit`` and total count of all activities of the given user.
     """
     return read_activities(session=session, skip=skip, limit=limit, user_ids={user_id})
 
@@ -145,7 +162,9 @@ def read_activities_by_location_id(
     :param session: Database session
     :param location_id: ``LocationId`` of the location to get the activities for.
     :param skip: Number of entries to skip when returning results
-    :param limit: Number of entries to return
+    :param limit: Number of entries to return.
+
+    :return List of activities limited to ``limit`` and total count of activities of the given location.
     """
     return read_activities(
         session=session, skip=skip, limit=limit, location_ids={location_id}
@@ -162,6 +181,7 @@ def read_activity_locations_by_user_ids(
     :param user_ids: Collection of ``UserId`` of the users to search for.
     :param skip: Number of entries to skip when returning results.
     :param limit: Number of entries to return.
+
     :return: List of locations.
     """
     stmt = select(Location).distinct()
@@ -192,7 +212,10 @@ def read_activity_types_by_user_ids(
     """
     Get all activity types users have associated activities with.
 
-    :return: List of activity types.
+    :param session: Database session
+    :param user_ids: Collection of ``UserId`` of the users to search for.
+
+    :return: List of activity types of the given user.
     """
 
     stmt = (
@@ -209,8 +232,22 @@ def read_activity_types_by_user_ids(
 
 
 def update_activity_by_id(
-    *, session: Session, activity_id: ActivityId, activity_update: ActivityUpdate
+    *,
+    session: Session,
+    activity_id: ActivityId,
+    activity_update: ActivityUpdate,
+    commit: bool = True,
 ) -> None:
+    """
+
+    :param session: Database session
+    :param activity_id: ``ActivityID`` of the activity to update.
+    :param activity_update: Data to update the activity. Unset fields will be ignored.
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: ``None``
+    """
+
     activity = read_activity_by_id(session=session, activity_id=activity_id)
     if activity is None:
         return
@@ -238,19 +275,23 @@ def update_activity_by_id(
                 params=tuple({"activity_type": t} for t in types),
             )
 
-    session.commit()
+    if commit:
+        session.commit()
 
 
 async def delete_activity_by_id(
-    *, session: AsyncSession, activity_id: ActivityId
+    *, session: AsyncSession, activity_id: ActivityId, commit: bool = True
 ) -> None:
     """
     Delete an activity by id.
 
     :param session: Asynchronous database session
     :param activity_id: ID of the activity to delete
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
     :return: ``None``
     """
     stmt = delete(Activity).filter_by(id=activity_id)
     await session.exec(stmt)
-    await session.commit()
+    if commit:
+        await session.commit()

@@ -32,7 +32,7 @@ def test_create_activity(
         user_ids={u.id for u in users},
     )
 
-    activity = crud.create_activity(session=db, activity_create=activity_create)
+    activity = crud.create_activity(session=db, data=activity_create)
 
     assert activity.title == activity_create.title
     assert activity.description == activity_create.description
@@ -59,7 +59,7 @@ def test_create_activity_without_location(
         user_ids={u.id for u in users},
     )
 
-    activity = crud.create_activity(session=db, activity_create=activity_create)
+    activity = crud.create_activity(session=db, data=activity_create)
 
     assert activity.title == activity_create.title
     assert activity.description == activity_create.description
@@ -85,7 +85,7 @@ def test_create_activity_without_users(
         duration=timedelta(minutes=5),
         location_id=location.id,
     )
-    activity = crud.create_activity(session=db, activity_create=activity_create)
+    activity = crud.create_activity(session=db, data=activity_create)
 
     assert activity.title == activity_create.title
     assert activity.description == activity_create.description
@@ -101,7 +101,7 @@ def test_create_activity_without_users(
 
 def test_create_activity_title_only(db: Session) -> None:
     activity_create = ActivityCreate(title=random_lower_string())
-    activity = crud.create_activity(session=db, activity_create=activity_create)
+    activity = crud.create_activity(session=db, data=activity_create)
 
     assert activity.title == activity_create.title
     assert activity.description is None
@@ -121,7 +121,7 @@ def test_create_activity_with_activity_types(
     db: Session, activity_type: ActivityType
 ) -> None:
     activity_create = ActivityCreate(title=random_lower_string(), types={activity_type})
-    activity = crud.create_activity(session=db, activity_create=activity_create)
+    activity = crud.create_activity(session=db, data=activity_create)
 
     assert activity.title == activity_create.title
     assert activity.description is None
@@ -141,7 +141,7 @@ def test_create_activity_start_with_timezone(db: Session) -> None:
     start = datetime.now(UTC)
 
     activity_create = ActivityCreate(title=random_lower_string(), start=start)
-    activity = crud.create_activity(session=db, activity_create=activity_create)
+    activity = crud.create_activity(session=db, data=activity_create)
 
     # assert activity.start.astimezone(UTC).timestamp() == start.timestamp()
     assert activity.start is not None
