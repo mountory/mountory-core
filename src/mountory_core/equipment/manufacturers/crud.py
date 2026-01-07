@@ -4,6 +4,7 @@ from sqlalchemy import BinaryExpression, ColumnElement, delete, func, update
 from sqlmodel import and_, col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from mountory_core.logging import logger
 from mountory_core.equipment.manufacturers.models import (
     Manufacturer,
     ManufacturerAccess,
@@ -31,11 +32,15 @@ async def create_manufacturer(
 
     :return: Created manufacturer.
     """
+    logger.info(f"create_manufacturer {data.name}")
     model_data = data.model_dump(exclude_unset=True, exclude={"accesses"})
+    logger.debug(f"create_manufacturer, create object, {model_data=}")
     manufacturer = Manufacturer.model_validate(model_data)
 
+    logger.debug(f"create_manufacturer, add to database, {manufacturer=}")
     db.add(manufacturer)
     if commit:
+        logger.debug("create_manufacturer, commit transaction")
         await db.commit()
         await db.refresh(manufacturer)
 
@@ -53,6 +58,7 @@ async def read_manufacturer_by_id(
 
     :return: ``Manufacturer`` if it exists, ``None`` otherwise.
     """
+    logger.info(f"read_manufacturer_by_id, {manufacturer_id=}")
     stmt = select(Manufacturer).filter_by(id=manufacturer_id)
     return (await db.exec(stmt)).one_or_none()
 
@@ -71,8 +77,10 @@ async def read_manufacturer_by_name(
 
     :return: ``Manufacturer`` if it exists, ``None`` otherwise.
     """
+    logger.info(f"read_manufacturer_by_name, {name=}, hidden={hidden=}")
     stmt = select(Manufacturer).filter_by(name=name)
     if hidden is not None:
+        logger.debug(f"read_manufacturer_by_name, filter by {hidden=}")
         stmt = stmt.filter_by(hidden=hidden)
     return (await db.exec(stmt)).one_or_none()
 
@@ -106,6 +114,9 @@ async def read_manufacturers(
     :return: List of manufacturers in combination with the access role of the provided user or ``None`` limited to ``limit``
      and the total count of all manufacturers matching the given parameters.
     """
+    logger.info(
+        f"read_manufacturers, skip={skip}, limit={limit}, user_id={user_id}, hidden={hidden=}, access_roles={access_roles=}"
+    )
 
     count_stmt = select(func.count()).select_from(Manufacturer)
 
@@ -156,6 +167,8 @@ async def read_manufacturers(
     stmt = stmt.order_by(func.lower(Manufacturer.name))
     stmt = stmt.offset(skip).limit(limit)
 
+    logger.debug(f"read_manufacturers, query={stmt}")
+
     return list((await db.exec(stmt)).all()), (await db.exec(count_stmt)).one()
 
 
@@ -176,12 +189,18 @@ async def update_manufacturer_by_id(
 
     :return: ``None``
     """
+    logger.info(
+        f"update_manufacturer_by_id, manufacturer_id={manufacturer_id}, _update={_update=}"
+    )
+
     data = _update.model_dump(exclude_unset=True, exclude={"accesses"})
+    logger.debug(f"update_manufacturer_by_id, data={data}")
 
     stmt = update(Manufacturer).filter_by(id=manufacturer_id).values(data)
     await db.exec(stmt)
 
     if commit:
+        logger.debug("update_manufacturer_by_id, commit transaction")
         await db.commit()
 
 
@@ -196,10 +215,13 @@ async def delete_manufacturer_by_id(
     :param commit: Whether to commit the database transaction. (Default: ``True``)
     :return: ``None``
     """
+    logger.info(f"delete_manufacturer_by_id, {manufacturer_id=}")
+
     stmt = delete(Manufacturer).filter_by(id=manufacturer_id)
     await db.exec(stmt)
 
     if commit:
+        logger.debug("delete_manufacturer_by_id, commit transaction")
         await db.commit()
 
 
@@ -229,6 +251,8 @@ async def set_manufacturer_access(
     """
     from sqlalchemy.dialects.postgresql import insert
 
+    logger.info(f"set_manufacturer_access, {manufacturer_id=}, {user_id=}, {role=}")
+
     stmt = (
         insert(ManufacturerAccess)
         .values(user_id=user_id, manufacturer_id=manufacturer_id, role=role)
@@ -242,6 +266,7 @@ async def set_manufacturer_access(
     )
     await db.exec(stmt)
     if commit:
+        logger.debug("set_manufacturer_access, commit transaction")
         await db.commit()
 
 
@@ -257,8 +282,10 @@ async def set_manufacturer_accesses(
 
     :return: ``None``
     """
+    logger.info(f"set_manufacturer_accesses, {accesses=}")
     for access in accesses:
         await set_manufacturer_access(db=db, **access, commit=False)
+    logger.info("set_manufacturer_accesses, commit transaction")
     await db.commit()
 
 
@@ -274,6 +301,9 @@ async def read_manufacturer_user_access(
 
     :return: ``ManufacturerAccessRole`` if the user has been granted access to the manufacturer, ``None`` otherwise.
     """
+    logger.info(
+        f"read_manufacturer_user_access, manufacturer_id={manufacturer_id=}, user_id={user_id}"
+    )
     stmt = select(ManufacturerAccess).filter_by(
         manufacturer_id=manufacturer_id, user_id=user_id
     )
@@ -294,6 +324,8 @@ async def read_manufacturer_user_accesses(
 
     :return: List of access roles and users, with access to the manufacturer.
     """
+    logger.info(f"read_manufacturer_user_accesses, manufacturer_id={manufacturer_id=}")
+
     stmt = (
         select(col(ManufacturerAccess.role), User)
         .filter_by(manufacturer_id=manufacturer_id)
@@ -338,10 +370,12 @@ async def remove_manufacturer_accesses(
 
     :return: ``None``
     """
-    stmt = delete(ManufacturerAccess)
-    stmt = stmt.filter_by(manufacturer_id=manufacturer_id)
+    logger.info(f"remove_manufacturer_accesses, {manufacturer_id=}")
+
+    stmt = delete(ManufacturerAccess).filter_by(manufacturer_id=manufacturer_id)
 
     await db.exec(stmt)
 
     if commit:
+        logger.debug("remove_manufacturer_accesses, commit transaction")
         await db.commit()
