@@ -32,7 +32,7 @@ def test_create_activity(
         user_ids={u.id for u in users},
     )
 
-    activity = crud.create_activity(session=db, data=activity_create)
+    activity = crud.create_activity(db=db, data=activity_create)
 
     assert activity.title == activity_create.title
     assert activity.description == activity_create.description
@@ -59,7 +59,7 @@ def test_create_activity_without_location(
         user_ids={u.id for u in users},
     )
 
-    activity = crud.create_activity(session=db, data=activity_create)
+    activity = crud.create_activity(db=db, data=activity_create)
 
     assert activity.title == activity_create.title
     assert activity.description == activity_create.description
@@ -85,7 +85,7 @@ def test_create_activity_without_users(
         duration=timedelta(minutes=5),
         location_id=location.id,
     )
-    activity = crud.create_activity(session=db, data=activity_create)
+    activity = crud.create_activity(db=db, data=activity_create)
 
     assert activity.title == activity_create.title
     assert activity.description == activity_create.description
@@ -101,7 +101,7 @@ def test_create_activity_without_users(
 
 def test_create_activity_title_only(db: Session) -> None:
     activity_create = ActivityCreate(title=random_lower_string())
-    activity = crud.create_activity(session=db, data=activity_create)
+    activity = crud.create_activity(db=db, data=activity_create)
 
     assert activity.title == activity_create.title
     assert activity.description is None
@@ -121,7 +121,7 @@ def test_create_activity_with_activity_types(
     db: Session, activity_type: ActivityType
 ) -> None:
     activity_create = ActivityCreate(title=random_lower_string(), types={activity_type})
-    activity = crud.create_activity(session=db, data=activity_create)
+    activity = crud.create_activity(db=db, data=activity_create)
 
     assert activity.title == activity_create.title
     assert activity.description is None
@@ -141,7 +141,7 @@ def test_create_activity_start_with_timezone(db: Session) -> None:
     start = datetime.now(UTC)
 
     activity_create = ActivityCreate(title=random_lower_string(), start=start)
-    activity = crud.create_activity(session=db, data=activity_create)
+    activity = crud.create_activity(db=db, data=activity_create)
 
     # assert activity.start.astimezone(UTC).timestamp() == start.timestamp()
     assert activity.start is not None
@@ -149,7 +149,7 @@ def test_create_activity_start_with_timezone(db: Session) -> None:
 
 
 def test_read_activity_by_id_not_existing(db: Session) -> None:
-    res = crud.read_activity_by_id(session=db, activity_id=uuid.uuid4())
+    res = crud.read_activity_by_id(db=db, activity_id=uuid.uuid4())
     assert res is None
 
 
@@ -165,7 +165,7 @@ def test_read_activity_by_user_id(
     db.commit()
 
     db_activities, db_count = crud.read_activities_by_user_id(
-        session=db, user_id=user.id, skip=0, limit=100
+        db=db, user_id=user.id, skip=0, limit=100
     )
 
     assert db_count == count
@@ -184,7 +184,7 @@ def test_read_activity_by_user_id_no_activities(
     db.commit()
 
     db_activities = crud.read_activities_by_user_id(
-        session=db, user_id=user.id, skip=0, limit=100
+        db=db, user_id=user.id, skip=0, limit=100
     )
 
     assert db_activities == ([], 0)
@@ -193,7 +193,7 @@ def test_read_activity_by_user_id_no_activities(
 def test_read_activity_by_user_id_user_not_existing(db: Session) -> None:
     user_id = uuid.uuid4()
     db_activities = crud.read_activities_by_user_id(
-        session=db, user_id=user_id, skip=0, limit=100
+        db=db, user_id=user_id, skip=0, limit=100
     )
 
     assert db_activities == ([], 0)
@@ -213,7 +213,7 @@ def test_read_activity_by_location_id(
     db.commit()
 
     res_activities, res_count = crud.read_activities_by_location_id(
-        session=db, location_id=location.id, skip=0, limit=100
+        db=db, location_id=location.id, skip=0, limit=100
     )
 
     assert res_count == count
@@ -232,7 +232,7 @@ def test_read_activity_by_location_id_no_activities(
     db.commit()
 
     db_activities = crud.read_activities_by_location_id(
-        session=db,
+        db=db,
         location_id=location.id,
         skip=0,
         limit=100,
@@ -250,7 +250,7 @@ def test_read_activities(
     activities = [create_activity(commit=False) for _ in range(count)]
     db.commit()
 
-    db_activities, db_count = crud.read_activities(session=db, skip=0, limit=500)
+    db_activities, db_count = crud.read_activities(db=db, skip=0, limit=500)
 
     assert db_count == existing_count + count
     missing = []
@@ -279,7 +279,7 @@ def test_read_activity_locations_by_user_ids(
     db.commit()
 
     res = crud.read_activity_locations_by_user_ids(
-        session=db, user_ids=[owner.id], skip=0, limit=1000
+        db=db, user_ids=[owner.id], skip=0, limit=1000
     )
 
     assert res[1] == count
@@ -304,7 +304,7 @@ def test_read_activity_locations_by_user_ids_multiple_activities(
     db.commit()
 
     res = crud.read_activity_locations_by_user_ids(
-        session=db, user_ids=[owner.id], skip=0, limit=1000
+        db=db, user_ids=[owner.id], skip=0, limit=1000
     )
 
     assert res == ([location], 1)
@@ -329,7 +329,7 @@ def test_read_activity_locations_by_user_ids_multiple_users(
     db.commit()
 
     res = crud.read_activity_locations_by_user_ids(
-        session=db, user_ids=[user.id for user in users], skip=0, limit=1000
+        db=db, user_ids=[user.id for user in users], skip=0, limit=1000
     )
 
     assert res[1] == count
@@ -346,7 +346,7 @@ def test_read_activity_types_by_user_ids(
     create_activity(users=[user], types=[activity_type], commit=False)
     db.commit()
 
-    res = crud.read_activity_types_by_user_ids(session=db, user_ids=(user.id,))
+    res = crud.read_activity_types_by_user_ids(db=db, user_ids=(user.id,))
 
     assert res == [activity_type]
 
@@ -368,7 +368,7 @@ def test_read_activity_types_by_user_ids_multiple_activities(
 
     db.commit()
 
-    res = crud.read_activity_types_by_user_ids(session=db, user_ids=(user.id,))
+    res = crud.read_activity_types_by_user_ids(db=db, user_ids=(user.id,))
 
     check_lists(res, activity_types, key=lambda o: o)
 
@@ -393,9 +393,7 @@ def test_update_activity(
     )
     update.start = datetime.now()
 
-    crud.update_activity_by_id(
-        session=db, activity_id=existing.id, activity_update=update
-    )
+    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
 
     db.refresh(existing)
 
@@ -410,9 +408,7 @@ def test_update_activity(
 
 def test_update_activity_not_existing(db: Session) -> None:
     update = ActivityUpdate(title=random_lower_string())
-    crud.update_activity_by_id(
-        session=db, activity_id=uuid.uuid4(), activity_update=update
-    )
+    crud.update_activity_by_id(db=db, activity_id=uuid.uuid4(), activity_update=update)
 
 
 def test_update_activity_remove_users(
@@ -427,9 +423,7 @@ def test_update_activity_remove_users(
 
     update = ActivityUpdate(title=existing.title, user_ids=[])
 
-    crud.update_activity_by_id(
-        session=db, activity_id=existing.id, activity_update=update
-    )
+    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
     db.refresh(existing)
 
     assert existing.users == []
@@ -446,9 +440,7 @@ def test_update_activity_add_users(
     assert existing.users == users[:5]
 
     update = ActivityUpdate(title=existing.title, user_ids={u.id for u in users})
-    crud.update_activity_by_id(
-        session=db, activity_id=existing.id, activity_update=update
-    )
+    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
     db.refresh(existing)
 
     check_lists(existing.users, users)
@@ -462,9 +454,7 @@ def test_update_activity_empty_update(
 
     update = ActivityUpdate(title=existing.title)
 
-    crud.update_activity_by_id(
-        session=db, activity_id=existing.id, activity_update=update
-    )
+    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
     db.refresh(existing)
 
     assert existing.model_dump() == before
@@ -478,9 +468,7 @@ def test_update_activity_types_set_new(
 
     update = ActivityUpdate(title=existing.title, types={activity_type})
 
-    crud.update_activity_by_id(
-        session=db, activity_id=existing.id, activity_update=update
-    )
+    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
 
     assert existing.types == {activity_type}
 
@@ -493,9 +481,7 @@ def test_update_activity_types_add_new(
     activity_types = {ActivityType.CLIMBING_ALPINE, activity_type}
     update = ActivityUpdate(title=existing.title, types=activity_types)
 
-    crud.update_activity_by_id(
-        session=db, activity_id=existing.id, activity_update=update
-    )
+    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
 
     assert existing.types == activity_types
 
@@ -507,9 +493,7 @@ def test_update_activity_types_remove_type(
     existing = create_activity(types=[activity_type])
     update = ActivityUpdate(title=existing.title, types=set())
 
-    crud.update_activity_by_id(
-        session=db, activity_id=existing.id, activity_update=update
-    )
+    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
 
     assert existing.types == set()
 
@@ -527,6 +511,6 @@ async def test_delete_activity_by_id(
         )
     )
 
-    await crud.delete_activity_by_id(session=async_db, activity_id=existing.id)
+    await crud.delete_activity_by_id(db=async_db, activity_id=existing.id)
 
     assert (await async_db.exec(stmt)).one_or_none() is None
