@@ -20,18 +20,19 @@ from mountory_core.users.types import UserId
 
 
 async def create_manufacturer(
-    *, db: AsyncSession, _create: ManufacturerCreate, commit: bool = True
+    *, db: AsyncSession, data: ManufacturerCreate, commit: bool = True
 ) -> Manufacturer:
     """
     Create a manufacturer in the given database.
 
     :param db: Database session.
-    :param _create:
-    :param commit: Whether to commit the database transaction or not.
+    :param data: ``ManufacturerCreate`` instance with data to create manufacturer.
+    :param commit: Whether to commit the database transaction or not. (Default: ``True``)
+
     :return: Created manufacturer.
     """
-    data = _create.model_dump(exclude_unset=True, exclude={"accesses"})
-    manufacturer = Manufacturer.model_validate(data)
+    model_data = data.model_dump(exclude_unset=True, exclude={"accesses"})
+    manufacturer = Manufacturer.model_validate(model_data)
 
     db.add(manufacturer)
     if commit:
@@ -49,7 +50,8 @@ async def read_manufacturer_by_id(
 
     :param db: Database session.
     :param manufacturer_id: ``ManufacturerId`` of the manufacturer to return.
-    :return: ``ManufacturerTable`` if it exists, ``None`` otherwise.
+
+    :return: ``Manufacturer`` if it exists, ``None`` otherwise.
     """
     stmt = select(Manufacturer).filter_by(id=manufacturer_id)
     return (await db.exec(stmt)).one_or_none()
@@ -66,7 +68,8 @@ async def read_manufacturer_by_name(
     :param db: Database session.
     :param name: Name of the manufacturer to return.
     :param hidden: Whether the manufacturer should be hidden or not.
-    :return: ``ManufacturerTable`` if it exists, ``None`` otherwise.
+
+    :return: ``Manufacturer`` if it exists, ``None`` otherwise.
     """
     stmt = select(Manufacturer).filter_by(name=name)
     if hidden is not None:
@@ -99,7 +102,9 @@ async def read_manufacturers(
     :param user_id: User ID to filter by.
     :param hidden: Value for hidden to filter by. (Either ``True`` or ``False``)
     :param access_roles: Collection of access roles to filter by.
-    :return:
+
+    :return: List of manufacturers in combination with the access role of the provided user or ``None`` limited to ``limit``
+     and the total count of all manufacturers matching the given parameters.
     """
 
     count_stmt = select(func.count()).select_from(Manufacturer)
@@ -161,6 +166,16 @@ async def update_manufacturer_by_id(
     _update: ManufacturerUpdate,
     commit: bool = True,
 ) -> None:
+    """
+    Update a given manufacturer.
+
+    :param db: Database session.
+    :param manufacturer_id: ``ManufacturerId`` of the manufacturer to update.
+    :param _update: Data to update the manufacturer with.
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: ``None``
+    """
     data = _update.model_dump(exclude_unset=True, exclude={"accesses"})
 
     stmt = update(Manufacturer).filter_by(id=manufacturer_id).values(data)
@@ -171,18 +186,21 @@ async def update_manufacturer_by_id(
 
 
 async def delete_manufacturer_by_id(
-    *, db: AsyncSession, manufacturer_id: ManufacturerId
+    *, db: AsyncSession, manufacturer_id: ManufacturerId, commit: bool = True
 ) -> None:
     """
     Delete a manufacturer by ID.
 
     :param db: Database session.
     :param manufacturer_id: ``ManufacturerId`` of the manufacturer to delete.
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
     :return: ``None``
     """
     stmt = delete(Manufacturer).filter_by(id=manufacturer_id)
     await db.exec(stmt)
-    await db.commit()
+
+    if commit:
+        await db.commit()
 
 
 ### Manage access rights
@@ -196,6 +214,19 @@ async def set_manufacturer_access(
     role: ManufacturerAccessRole,
     commit: bool = True,
 ) -> None:
+    """
+    Grant access role to user for a manufacturer.
+
+    NOTE: Existing roles will be overwritten.
+
+    :param db: Database session.
+    :param manufacturer_id: ``ManufacturerId`` of the manufacturer to set the access for.
+    :param user_id: ``UserId`` of the user to set the access for.
+    :param role: ``ManufacturerAccessRole`` to grant the given user for the given manufacturer.
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: ``None``
+    """
     from sqlalchemy.dialects.postgresql import insert
 
     stmt = (
@@ -215,13 +246,15 @@ async def set_manufacturer_access(
 
 
 async def set_manufacturer_accesses(
-    *, db: AsyncSession, accesses: Sequence[ManufacturerAccessDict]
+    *, db: AsyncSession, accesses: Sequence[ManufacturerAccessDict], commit: bool = True
 ) -> None:
     """
     Set multiple manufacturer access roles at once.
 
     :param db: Database session.
-    :param accesses:
+    :param accesses: List  of accesses to set.
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
     :return: ``None``
     """
     for access in accesses:
@@ -232,6 +265,15 @@ async def set_manufacturer_accesses(
 async def read_manufacturer_user_access(
     *, db: AsyncSession, manufacturer_id: ManufacturerId, user_id: UserId
 ) -> ManufacturerAccessRole | None:
+    """
+    Get access role of a given user for a given manufacturer.
+
+    :param db: Database session.
+    :param manufacturer_id: ``ManufacturerId`` of the manufacturer to get the access for.
+    :param user_id: ``UserId`` of the user to get the access for.
+
+    :return: ``ManufacturerAccessRole`` if the user has been granted access to the manufacturer, ``None`` otherwise.
+    """
     stmt = select(ManufacturerAccess).filter_by(
         manufacturer_id=manufacturer_id, user_id=user_id
     )
@@ -244,6 +286,14 @@ async def read_manufacturer_user_access(
 async def read_manufacturer_user_accesses(
     *, db: AsyncSession, manufacturer_id: ManufacturerId
 ) -> list[tuple[ManufacturerAccessRole, User]]:
+    """
+    Get all user accesses for a given manufacturer.
+
+    :param db: Database session.
+    :param manufacturer_id: ``ManufacturerId`` of the manufacturer to get the accesses for.
+
+    :return: List of access roles and users, with access to the manufacturer.
+    """
     stmt = (
         select(col(ManufacturerAccess.role), User)
         .filter_by(manufacturer_id=manufacturer_id)
@@ -263,9 +313,10 @@ async def remove_manufacturer_access_rights(
     Remove access rights of a user for the given manufacturer_id.
 
     :param db: Database session.
-    :param manufacturer_id: ``ManufacturerId`` of the manufacturer to targer.
+    :param manufacturer_id: ``ManufacturerId`` of the manufacturer to target.
     :param user_id: ``UserId`` of the user to remove.
     :param commit: Whether to commit the changes to the database. (Default: ``True``).
+
     :return: None
     """
     stmt = delete(ManufacturerAccess)
@@ -284,6 +335,7 @@ async def remove_manufacturer_accesses(
     :param db: Database session.
     :param manufacturer_id: ``ManufacturerId`` of the manufacturer.
     :param commit: Whether to commit the changes to the database. (Default: ``True``).
+
     :return: ``None``
     """
     stmt = delete(ManufacturerAccess)
