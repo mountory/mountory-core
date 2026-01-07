@@ -14,6 +14,7 @@ from mountory_core.activities.models import (
 from mountory_core.activities.types import ActivityId, ActivityType
 from mountory_core.locations.models import Location
 from mountory_core.locations.types import LocationId
+from mountory_core.logging import logger
 from mountory_core.users.types import UserId
 from mountory_core.util import create_filter_in_with_none
 
@@ -33,19 +34,25 @@ def create_activity(
 
     :return: Created ``Activity``
     """
+    logger.info(f"create_activity, {data=}")
+
+    logger.debug("create_activity, create database object")
     activity = Activity.model_validate(
         data.model_dump(exclude={"location", "user_ids", "types"})
     )
     if data.types:
+        logger.debug("create_activity, set activity types")
         activity.type_associations = [
             ActivityTypeAssociation(activity_type=activity_type)
             for activity_type in data.types
         ]
-
+    logger.debug(f"create_activity, add user associations user_ids={data.user_ids}")
     for user_id in data.user_ids or ():
         db.add(ActivityUserLink(user_id=user_id, activity_id=activity.id))
+    logger.debug("create_activity, add to database")
     db.add(activity)
     if commit:
+        logger.debug("create_activity, commit transaction")
         db.commit()
         db.refresh(activity)
     return activity
@@ -60,7 +67,9 @@ def read_activity_by_id(*, db: Session, activity_id: ActivityId) -> Activity | N
 
     :return: ``Activity`` if it exists, else ``None``.
     """
+    logger.info(f"read_activity_by_id, {activity_id}")
     stmt = select(Activity).filter_by(id=activity_id)
+    logger.debug(f"read_activity_by_id {activity_id}, execute query: {stmt}")
     return db.exec(stmt).one_or_none()
 
 
@@ -85,8 +94,12 @@ def read_activities(
     :param parent_ids: Optional parent ids to filter activities.
     :param activity_types: Optional activity types to filter activities.
 
-    :return ``tuple``  of a list of activities and the total count of activities matching the search parameters.
+    :return ``tuple`` of a list of activities and the total count of activities matching the search parameters.
     """
+    logger.info(
+        f"read_activities, {skip=}, {limit=}, {user_ids=}, {location_ids=}, {parent_ids=}, {activity_types=}"
+    )
+
     stmt = select(Activity)
     count_stmt = select(func.count()).select_from(Activity)
 
@@ -128,6 +141,7 @@ def read_activities(
 
     stmt = stmt.order_by(col(Activity.start).desc()).offset(skip).limit(limit)
 
+    logger.debug(f"read_activities, execute query: {stmt}")
     return list(db.exec(stmt).all()), db.exec(count_stmt).one()
 
 
@@ -144,6 +158,7 @@ def read_activities_by_user_id(
 
     :return List of activities limited to ``limit`` and total count of all activities of the given user.
     """
+    logger.info(f"read_activities by user id, {user_id=}, {skip=}, {limit=}")
     return read_activities(db=db, skip=skip, limit=limit, user_ids={user_id})
 
 
@@ -164,6 +179,7 @@ def read_activities_by_location_id(
 
     :return List of activities limited to ``limit`` and total count of activities of the given location.
     """
+    logger.info(f"read_activities_by_location_id, {location_id=}, {skip=}, {limit=}")
     return read_activities(db=db, skip=skip, limit=limit, location_ids={location_id})
 
 
@@ -180,6 +196,7 @@ def read_activity_locations_by_user_ids(
 
     :return: List of locations.
     """
+    logger.info(f"read_activity_locations_by_user_ids, {user_ids=}, {skip=}, {limit=}")
     stmt = select(Location).distinct()
     count_stmt = select(func.count(distinct(col(Location.id)))).select_from(Location)
 
@@ -198,6 +215,7 @@ def read_activity_locations_by_user_ids(
     count_stmt = count_stmt.filter(col(ActivityUserLink.user_id).in_(user_ids))
 
     stmt = stmt.offset(skip).limit(limit)
+    logger.debug(f"read_activity_locations_by_user_ids, execute query: {stmt}")
 
     return list(db.exec(stmt)), db.exec(count_stmt).one()
 
@@ -213,7 +231,7 @@ def read_activity_types_by_user_ids(
 
     :return: List of activity types of the given user.
     """
-
+    logger.debug(f"read_activity_types_by_user_ids, {user_ids=}")
     stmt = (
         select(col(ActivityTypeAssociation.activity_type))
         .distinct()
@@ -251,12 +269,16 @@ def update_activity_by_id(
     update_data = activity_update.model_dump(
         exclude_unset=True, exclude={"user_ids", "types"}
     )
+    logger.debug(f"update_activity_by_id, update {activity_id} with {update_data=}")
     activity.sqlmodel_update(update_data)
 
     user_ids = activity_update.user_ids
     if user_ids is not None:
+        logger.debug(f"update_activity_by_id, handle user_ids, {user_ids=}")
+        logger.debug("update_activity_by_id, delete existing user links")
         db.exec(delete(ActivityUserLink).filter_by(activity_id=activity_id))
         if user_ids:
+            logger.debug("update_activity_by_id, add new user links")
             db.exec(
                 insert(ActivityUserLink).values(activity_id=activity_id),
                 params=tuple({"user_id": user_id} for user_id in user_ids),
@@ -264,14 +286,18 @@ def update_activity_by_id(
 
     types = activity_update.types
     if types is not None:
+        logger.debug(f"update_activity_by_id, handle types, {types=}")
+        logger.debug("update_activity_by_id, delete existing type associations")
         db.exec(delete(ActivityTypeAssociation).filter_by(activity_id=activity_id))
         if types:
+            logger.debug("update_activity_by_id, add new tyoe associations")
             db.exec(
                 insert(ActivityTypeAssociation).values(activity_id=activity_id),
                 params=tuple({"activity_type": t} for t in types),
             )
 
     if commit:
+        logger.debug("update_activity_by_id, commit database transaction")
         db.commit()
 
 
@@ -287,7 +313,9 @@ async def delete_activity_by_id(
 
     :return: ``None``
     """
+    logger.info(f"delete_activity_by_id, {activity_id=}")
     stmt = delete(Activity).filter_by(id=activity_id)
     await db.exec(stmt)
+    logger.debug("delete_activity_by_id, commit database transaction")
     if commit:
         await db.commit()
