@@ -4,6 +4,7 @@ from sqlalchemy import delete, func
 from sqlmodel import Session, col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from mountory_core.logging import logger
 from mountory_core.activities.types import ActivityId
 from mountory_core.transactions.models import (
     Transaction,
@@ -32,10 +33,16 @@ def create_transaction(
 
     :return: Created transaction.
     """
+    logger.info(f"Create transaction, {data=}")
+
+    logger.debug(f"Create transaction, create object data={data}")
     transaction = Transaction.model_validate(data)
+
+    logger.debug(f"Create transaction, add object to database {transaction=}")
     db.add(transaction)
 
     if commit:
+        logger.debug("Create transaction, commit transaction")
         db.commit()
         db.refresh(transaction)
     return transaction
@@ -50,6 +57,7 @@ def read_transaction_by_id(*, db: Session, _id: TransactionId) -> Transaction | 
 
     :return: Existing transaction or ``None``.
     """
+    logger.info(f"Read transaction, id={_id}")
     stmt = select(Transaction).filter_by(id=_id)
     return db.exec(stmt).one_or_none()
 
@@ -75,6 +83,8 @@ def read_transactions(
 
     :return: List of transactions limited by ``limit`` and the total count of transactions matching the parameters.
     """
+    logger.info(f"Read transactions, {skip=}, {limit=}, {user_ids=}, {activity_ids=}")
+
     stmt = select(Transaction)
     stmt_count = select(func.count()).select_from(Transaction)
 
@@ -91,6 +101,7 @@ def read_transactions(
         stmt_count = stmt_count.filter(filter_users)
 
     stmt = stmt.offset(skip).limit(limit)
+    logger.debug(f"Read transactions, query=\n{stmt}")
 
     transactions = list(db.exec(stmt).all())
     count = db.exec(stmt_count).one()
@@ -115,8 +126,11 @@ def update_transaction(
 
     :return: Updated transaction.
     """
+    logger.info(f"Update transaction, {data=}")
+    logger.debug(f"Update transaction, update object data={data}")
     transaction.sqlmodel_update(data)
     if commit:
+        logger.debug("Update transaction, commit transaction")
         db.commit()
         db.refresh(transaction)
     return transaction
@@ -137,4 +151,5 @@ async def delete_transaction_by_id(
     stmt = delete(Transaction).filter_by(id=transaction_id)
     await db.exec(stmt)
     if commit:
+        logger.info(f"Delete transaction, id={transaction_id}")
         await db.commit()

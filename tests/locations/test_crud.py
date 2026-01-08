@@ -206,12 +206,15 @@ def test_update_location_not_existing(db: Session) -> None:
     name = random_lower_string()
     location = Location(name=name)
 
+    name_update = random_lower_string()
+
     location_updated = crud.update_location(
         db=db,
         location=location,
-        data=LocationUpdate(name=location.name),
+        data=LocationUpdate(name=name_update),
     )
     assert location_updated is location
+    assert location_updated.name == name_update
 
     stmt = select(Location).filter_by(id=location.id)
     loc = db.exec(stmt).one_or_none()

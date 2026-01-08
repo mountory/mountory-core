@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import Session, col, delete, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from mountory_core.logging import logger
 from mountory_core.locations.models import (
     Location,
     LocationActivityTypeAssociation,
@@ -29,15 +30,25 @@ def create_location(
 
     :return: Created ``Location``.
     """
+    logger.info(f"create_location, {data=}")
+
     model_data = data.model_dump(exclude={"activity_types", "activity_types_new"})
+    logger.debug(f"create_location, create object, {model_data=}")
     db_obj = Location.model_validate(model_data)
+
+    logger.debug(f"create_location, add to database,  db_obj={db_obj=}")
     db.add(db_obj)
+
+    logger.debug(
+        f"create_location, set activity types, activity_types={data.activity_types}"
+    )
     db_obj.activity_type_associations = [
         LocationActivityTypeAssociation(activity_type=activity_type)
         for activity_type in data.activity_types
     ]
 
     if commit:
+        logger.debug("create_location, commit transaction")
         db.commit()
         db.refresh(db_obj)
     return db_obj
@@ -52,6 +63,7 @@ def read_location_by_id(*, db: Session, location_id: LocationId) -> Location | N
 
     :return: ``Location`` instance if it exists, otherwise ``None``.
     """
+    logger.info(f"read_location_by_id, {location_id=}")
     stmt = select(Location).filter_by(id=location_id)
     return db.exec(stmt).one_or_none()
 
@@ -75,6 +87,7 @@ def read_locations(
     :return: List of locations limited by ``limit`` and the total count of locations matching the given parameters.
     """
 
+    logger.info(f"read_locations, {skip=}, {limit=}, {location_types=}, {parent_ids=}")
     stmt = select(Location)
     stmt_count = select(func.count()).select_from(Location)
 
@@ -90,6 +103,7 @@ def read_locations(
         stmt_count = stmt_count.filter(parent_filter)
 
     stmt = stmt.order_by(col(Location.name)).offset(skip).limit(limit)
+    logger.debug(f"read_locations, query:\n{stmt}")
 
     data = list(db.exec(stmt).all())
     count = db.exec(stmt_count).one()
@@ -114,14 +128,26 @@ def update_location(
 
     :return: Updated ``Location`` instance.
     """
+    logger.info(f"update_location, {location=}, {data=}")
     stmt = select(Location).filter_by(id=location.id)
     loc = db.exec(stmt).one_or_none()
     if not loc:
-        return location
+        if commit is not None:
+            logger.warning(
+                f"update_location, location does not exist in database, but ``commit is not None``. This might not be intended. "
+                f"If you do not expect the location to be present, consider not setting ``commit`` or set it to ``None``, ({location=})"
+            )
+        else:
+            logger.info(
+                f"update_location, location does not exist in database, {location=}"
+            )
+        return location.sqlmodel_update(data.model_dump(exclude_unset=True))
 
     model_data = data.model_dump(exclude_unset=True)
+    logger.debug(f"update_location, update location, data={model_data}")
     loc.sqlmodel_update(model_data)
     if commit:
+        logger.debug("update_location, commit transaction")
         db.commit()
         db.refresh(location)
     return loc
@@ -146,19 +172,26 @@ def update_location_by_id(
 
     :return: ``None``
     """
+    logger.info(f"update_location_by_id, {location_id=}, {data=}")
+
     model_data = data.model_dump(
         exclude_unset=True, exclude={"activity_types", "activity_types_new"}
     )
 
+    logger.debug(
+        f"update_location_by_id, update location in database, data={model_data}"
+    )
     stmt = update(Location).filter_by(id=location_id).values(**model_data)
     db.exec(stmt)
 
     # update location activity_types
+    logger.debug("update_location_by_id, remove old type associations")
     stmt_del = delete(LocationActivityTypeAssociation).filter_by(
         location_id=location_id
     )
     db.exec(stmt_del)
 
+    logger.debug("update_location_by_id, set type associations")
     db.add_all(
         LocationActivityTypeAssociation(
             location_id=location_id, activity_type=activity_type
@@ -166,6 +199,7 @@ def update_location_by_id(
         for activity_type in data.activity_types
     )
     if commit:
+        logger.debug("update_location_by_id, commit transaction")
         db.commit()
 
 
@@ -181,9 +215,11 @@ async def delete_location_by_id(
 
     :return: ``None``
     """
+    logger.info(f"delete_location_by_id, {location_id=}")
     stmt = delete(Location).filter_by(id=location_id)
     await db.exec(stmt)
     if commit:
+        logger.debug(f"delete_location_by_id, {location_id=}, commit transaction")
         await db.commit()
 
 
@@ -205,9 +241,11 @@ async def create_location_favorite(
 
     :return: ``None``
     """
+    logger.info(f"create_location_favorite, {location_id=}, user_id={user_id}")
     stmt = insert(LocationUserFavorite).values(user_id=user_id, location_id=location_id)
     await db.exec(stmt)
     if commit:
+        logger.debug("create_location_favorite, commit transaction")
         await db.commit()
 
 
@@ -224,6 +262,7 @@ async def read_location_favorite(
 
     :return: ``LocationUserFavorite`` if it exists, otherwise ``None``.
     """
+    logger.debug(f"read_location_favorite, {location_id=}, user_id={user_id}")
     stmt = select(LocationUserFavorite).filter_by(
         location_id=location_id, user_id=user_id
     )
@@ -245,11 +284,13 @@ async def delete_location_favorite(
 
     :return: ``None``
     """
+    logger.info(f"delete_location_favorite, {location_id=}, user_id={user_id}")
     stmt = delete(LocationUserFavorite).filter_by(
         user_id=user_id, location_id=location_id
     )
     await db.exec(stmt)
     if commit:
+        logger.debug("delete_location_favorite, commit transaction")
         await db.commit()
 
 
@@ -264,6 +305,7 @@ async def read_favorite_locations_by_user_id(
 
     :return: List of existing location favorites.
     """
+    logger.info(f"read_favorite_locations_by_user_id, {user_id=}")
     stmt = (
         select(Location)
         .options(

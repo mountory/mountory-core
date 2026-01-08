@@ -9,3 +9,11 @@ import pytest
 @pytest.fixture(scope="module")
 def anyio_backend() -> str:
     return "asyncio"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_logging() -> None:
+    import logging
+    from mountory_core.logging import logger
+
+    logger.setLevel(logging.DEBUG)
