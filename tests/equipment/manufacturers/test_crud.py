@@ -31,7 +31,7 @@ async def test_create_manufacturer_with_commit() -> None:
     _create = ManufacturerCreate(name=random_lower_string())
     commit = True
 
-    await crud.create_manufacturer(db=db, _create=_create, commit=commit)
+    await crud.create_manufacturer(db=db, data=_create, commit=commit)
 
     db.commit.assert_called_once()
 
@@ -42,7 +42,7 @@ async def test_create_manufacturer_no_commit(commit: bool) -> None:
     db = AsyncMock(spec=AsyncSession)
     _create = ManufacturerCreate(name=random_lower_string())
 
-    await crud.create_manufacturer(db=db, _create=_create, commit=commit)
+    await crud.create_manufacturer(db=db, data=_create, commit=commit)
 
     db.commit.assert_not_called()
 
@@ -50,7 +50,7 @@ async def test_create_manufacturer_no_commit(commit: bool) -> None:
 @pytest.mark.anyio
 async def test_create_manufacturer_defaults(async_db: AsyncSession) -> None:
     create = ManufacturerCreate(name=random_lower_string())
-    manufacturer = await crud.create_manufacturer(db=async_db, _create=create)
+    manufacturer = await crud.create_manufacturer(db=async_db, data=create)
 
     assert manufacturer.name == create.name
     assert manufacturer.hidden is True
@@ -75,7 +75,7 @@ async def test_create_manufacturer_optinal_values(
     create = ManufacturerCreate(
         name=random_lower_string(), short_name=value, description=value, website=value
     )
-    manufacturer = await crud.create_manufacturer(db=async_db, _create=create)
+    manufacturer = await crud.create_manufacturer(db=async_db, data=create)
 
     assert manufacturer.short_name is None
     assert manufacturer.website is None

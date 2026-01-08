@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+
 from mountory_core.activities.types import ActivityType
 from mountory_core.locations import crud
 from mountory_core.locations.models import (
@@ -32,7 +33,7 @@ def test_create_location(db: Session) -> None:
     location_create = LocationCreate(
         name=name, abbreviation=abbreviation, website=website
     )
-    location = crud.create_location(session=db, location_create=location_create)
+    location = crud.create_location(db=db, data=location_create)
     assert location.name == name
     assert hasattr(location, "id")
     assert type(location.id) is LocationId
@@ -48,7 +49,7 @@ def test_create_location_duplicate_name(
     existing = create_location()
 
     location_create = LocationCreate(name=existing.name)
-    location = crud.create_location(session=db, location_create=location_create)
+    location = crud.create_location(db=db, data=location_create)
     assert location.name == existing.name
     assert hasattr(location, "id")
     assert type(location.id) is LocationId
@@ -61,7 +62,7 @@ def test_create_location_duplicate_name(
 def test_read_location_by_id(db: Session) -> None:
     existing = create_random_location(db=db)
 
-    location = crud.read_location_by_id(session=db, location_id=existing.id)
+    location = crud.read_location_by_id(db=db, location_id=existing.id)
     assert location == existing
 
     # cleanup
@@ -71,7 +72,7 @@ def test_read_location_by_id(db: Session) -> None:
 
 def test_read_location_by_id_not_existing(db: Session) -> None:
     location_id = uuid.uuid4()
-    location = crud.read_location_by_id(session=db, location_id=location_id)
+    location = crud.read_location_by_id(db=db, location_id=location_id)
 
     assert location is None
 
@@ -88,7 +89,7 @@ def test_read_locations_filter_by_types(
     existing = (db.exec(select(Location).filter_by(location_type=loc_type))).all()
 
     db_location, count = crud.read_locations(
-        session=db, skip=0, limit=len(existing), location_types=[loc_type]
+        db=db, skip=0, limit=len(existing), location_types=[loc_type]
     )
     assert count == len(existing)
     check_lists(db_location, existing)
@@ -102,7 +103,9 @@ def test_read_locations_filter_by_types_none(
     db.commit()
     existing = db.exec(select(Location)).all()
 
-    db_locations, count = crud.read_locations(session=db, skip=0, limit=len(existing))
+    db_locations, count = crud.read_locations(
+        db=db, skip=0, limit=len(existing), location_types=None
+    )
     assert count == len(existing)
     check_lists(db_locations, existing)
 
@@ -116,10 +119,68 @@ def test_read_locations_filter_by_types_empty_list(
     existing = db.exec(select(Location)).all()
 
     db_locations, count = crud.read_locations(
-        session=db, skip=0, limit=len(existing), location_types=[]
+        db=db, skip=0, limit=len(existing), location_types=[]
     )
     assert count == len(existing)
     check_lists(db_locations, existing)
+
+
+def test_read_locations_filter_by_parent_ids(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    parents = [create_location(commit=False) for _ in range(2)]
+    parent_id = parents[0].id
+
+    target_location = create_location(commit=False)
+    target_location.parent_id = parent_id
+    db.commit()
+
+    db_locations, count = crud.read_locations(
+        db=db, skip=0, limit=len(parents), parent_ids=[parent_id]
+    )
+    assert count == 1
+    assert db_locations == [target_location]
+
+
+def test_read_locations_filter_by_parent_ids_not_existing(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    for _ in range(2):
+        create_location(commit=False)
+    parent_id = uuid.uuid4()
+
+    db_locations, count = crud.read_locations(
+        db=db, skip=0, limit=100, parent_ids=[parent_id]
+    )
+
+    assert count == 0
+    assert db_locations == []
+
+
+def test_read_locations_filter_by_parent_ids_none(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    locations = [create_location(commit=False) for _ in range(2)]
+    db.commit()
+
+    db_locations, count = crud.read_locations(
+        db=db, skip=0, limit=len(locations), parent_ids=None
+    )
+    assert count == len(locations)
+    check_lists(db_locations, locations)
+
+
+def test_read_locations_filter_by_parent_ids_empty_list(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    locations = [create_location(commit=False) for _ in range(2)]
+    db.commit()
+
+    db_locations, count = crud.read_locations(
+        db=db, skip=0, limit=len(locations), parent_ids=[]
+    )
+    assert count == len(locations)
+    check_lists(db_locations, locations)
 
 
 def test_update_location(db: Session, create_location: CreateLocationProtocol) -> None:
@@ -128,7 +189,7 @@ def test_update_location(db: Session, create_location: CreateLocationProtocol) -
     location_update = LocationUpdate(name=random_lower_string())
 
     location_updated = crud.update_location(
-        session=db, location=location, location_update=location_update
+        db=db, location=location, data=location_update
     )
 
     assert location_updated.name == location_update.name
@@ -146,9 +207,9 @@ def test_update_location_not_existing(db: Session) -> None:
     location = Location(name=name)
 
     location_updated = crud.update_location(
-        session=db,
+        db=db,
         location=location,
-        location_update=LocationUpdate(name=location.name),
+        data=LocationUpdate(name=location.name),
     )
     assert location_updated is location
 
@@ -164,9 +225,7 @@ def test_update_location_by_id(
     location_id = location.id
     location_update = LocationUpdate(name=random_lower_string())
 
-    crud.update_location_by_id(
-        session=db, location_id=location_id, location_update=location_update
-    )
+    crud.update_location_by_id(db=db, location_id=location_id, data=location_update)
     db.refresh(location)
 
     assert location.id == location_id
@@ -177,9 +236,7 @@ def test_update_location_by_id_not_existing(db: Session) -> None:
     location_id = uuid.uuid4()
     location_update = LocationUpdate(name=random_lower_string())
 
-    crud.update_location_by_id(
-        session=db, location_id=location_id, location_update=location_update
-    )
+    crud.update_location_by_id(db=db, location_id=location_id, data=location_update)
 
     stmt = select(Location).filter_by(id=location_id)
     assert db.exec(stmt).one_or_none() is None
@@ -192,7 +249,7 @@ async def test_delete_location(
     location = create_location()
     location_id = location.id
 
-    await crud.delete_location_by_id(session=async_db, location_id=location.id)
+    await crud.delete_location_by_id(db=async_db, location_id=location.id)
 
     stmt = select(Location).filter_by(id=location_id)
     assert (await async_db.exec(stmt)).one_or_none() is None
@@ -204,7 +261,7 @@ async def test_delete_location_not_existing(async_db: AsyncSession) -> None:
     location_id = location.id
 
     # we basically check whether deleting will not raise an exception
-    await crud.delete_location_by_id(session=async_db, location_id=location_id)
+    await crud.delete_location_by_id(db=async_db, location_id=location_id)
 
     stmt = select(Location).filter_by(id=location_id)
     assert (await async_db.exec(stmt)).one_or_none() is None
@@ -220,7 +277,7 @@ async def test_add_location_favorite(
     location = create_location()
 
     await crud.create_location_favorite(
-        session=async_db, location_id=location.id, user_id=user.id
+        db=async_db, location_id=location.id, user_id=user.id
     )
 
     stmt = select(LocationUserFavorite).filter_by(location_id=location.id)
@@ -247,7 +304,7 @@ async def test_remove_location_favorite(
     assert (await async_db.exec(stmt)).one()
 
     await crud.delete_location_favorite(
-        session=async_db, location_id=location.id, user_id=user.id
+        db=async_db, location_id=location.id, user_id=user.id
     )
 
     assert (await async_db.exec(stmt)).one_or_none() is None

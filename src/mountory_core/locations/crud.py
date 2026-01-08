@@ -17,35 +17,64 @@ from mountory_core.users.types import UserId
 from mountory_core.util import create_filter_in_with_none
 
 
-def create_location(*, session: Session, location_create: LocationCreate) -> Location:
-    data = location_create.model_dump(exclude={"activity_types", "activity_types_new"})
-    db_obj = Location.model_validate(data)
-    session.add(db_obj)
+def create_location(
+    *, db: Session, data: LocationCreate, commit: bool = True
+) -> Location:
+    """
+    Create a new location.
+
+    :param db: Database session.
+    :param data: ``LocationCreate`` instance with data for the new location.
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: Created ``Location``.
+    """
+    model_data = data.model_dump(exclude={"activity_types", "activity_types_new"})
+    db_obj = Location.model_validate(model_data)
+    db.add(db_obj)
     db_obj.activity_type_associations = [
         LocationActivityTypeAssociation(activity_type=activity_type)
-        for activity_type in location_create.activity_types
+        for activity_type in data.activity_types
     ]
 
-    session.commit()
-    session.refresh(db_obj)
+    if commit:
+        db.commit()
+        db.refresh(db_obj)
     return db_obj
 
 
-def read_location_by_id(
-    *, session: Session, location_id: LocationId
-) -> Location | None:
+def read_location_by_id(*, db: Session, location_id: LocationId) -> Location | None:
+    """
+    Get location by ID from the database.
+
+    :param db: Database session.
+    :param location_id: ``LocationId`` of the location to get.
+
+    :return: ``Location`` instance if it exists, otherwise ``None``.
+    """
     stmt = select(Location).filter_by(id=location_id)
-    return session.exec(stmt).one_or_none()
+    return db.exec(stmt).one_or_none()
 
 
 def read_locations(
     *,
-    session: Session,
+    db: Session,
     skip: int,
     limit: int,
     location_types: Collection[LocationType] | None = None,
     parent_ids: Collection[LocationId | None] | None = None,
 ) -> tuple[list[Location], int]:
+    """
+
+    :param db: Database session.
+    :param skip: Entries to skip when returning results.
+    :param limit: Number of entries to return.
+    :param location_types: Location types to filter by.
+    :param parent_ids: Ids of parent locations to filter by.
+
+    :return: List of locations limited by ``limit`` and the total count of locations matching the given parameters.
+    """
+
     stmt = select(Location)
     stmt_count = select(func.count()).select_from(Location)
 
@@ -62,119 +91,166 @@ def read_locations(
 
     stmt = stmt.order_by(col(Location.name)).offset(skip).limit(limit)
 
-    data = list(session.exec(stmt).all())
-    count = session.exec(stmt_count).one()
+    data = list(db.exec(stmt).all())
+    count = db.exec(stmt_count).one()
 
     return data, count
 
 
 def update_location(
-    *, session: Session, location: Location, location_update: LocationUpdate
+    *, db: Session, location: Location, data: LocationUpdate, commit: bool = True
 ) -> Location:
     """
     Updated the given location
 
     If the location is present in the database, it will be updated there as well.
+
+    NOTE: empty fields of the provided data will be ignored.
+
+    :param db: Database session.
+    :param location: ``Location`` to update.
+    :param data: ``LocationUpdate`` instance with update data.
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: Updated ``Location`` instance.
     """
     stmt = select(Location).filter_by(id=location.id)
-    loc = session.exec(stmt).one_or_none()
+    loc = db.exec(stmt).one_or_none()
     if not loc:
         return location
 
-    location_data = location_update.model_dump(exclude_unset=True)
-    loc.sqlmodel_update(location_data)
-    session.commit()
-    session.refresh(location)
+    model_data = data.model_dump(exclude_unset=True)
+    loc.sqlmodel_update(model_data)
+    if commit:
+        db.commit()
+        db.refresh(location)
     return loc
 
 
 def update_location_by_id(
-    *, session: Session, location_id: LocationId, location_update: LocationUpdate
+    *,
+    db: Session,
+    location_id: LocationId,
+    data: LocationUpdate,
+    commit: bool = True,
 ) -> None:
-    location_data = location_update.model_dump(
+    """
+    Update a location by ``LocationId``.
+
+    NOTE: Emtpy fields fo the provided data will be ignored.
+
+    :param db: Database session.
+    :param location_id: ``LocationId`` of the location to update.
+    :param data: ``LocationUpdate`` instance with update data.
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: ``None``
+    """
+    model_data = data.model_dump(
         exclude_unset=True, exclude={"activity_types", "activity_types_new"}
     )
 
-    stmt = update(Location).filter_by(id=location_id).values(**location_data)
-    session.exec(stmt)
+    stmt = update(Location).filter_by(id=location_id).values(**model_data)
+    db.exec(stmt)
 
     # update location activity_types
     stmt_del = delete(LocationActivityTypeAssociation).filter_by(
         location_id=location_id
     )
-    session.exec(stmt_del)
+    db.exec(stmt_del)
 
-    session.add_all(
+    db.add_all(
         LocationActivityTypeAssociation(
             location_id=location_id, activity_type=activity_type
         )
-        for activity_type in location_update.activity_types
+        for activity_type in data.activity_types
     )
-    session.commit()
+    if commit:
+        db.commit()
 
 
 async def delete_location_by_id(
-    *, session: AsyncSession, location_id: LocationId
+    *, db: AsyncSession, location_id: LocationId, commit: bool = True
 ) -> None:
+    """
+    Delete a location by ``LocationId``.
+
+    :param db: Async database session.
+    :param location_id: ``LocationId`` of the location to delete.
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: ``None``
+    """
     stmt = delete(Location).filter_by(id=location_id)
-    await session.exec(stmt)
-    await session.commit()
+    await db.exec(stmt)
+    if commit:
+        await db.commit()
 
 
 async def create_location_favorite(
-    session: AsyncSession,
+    db: AsyncSession,
     location_id: LocationId,
     user_id: UserId,
+    commit: bool = True,
 ) -> None:
     """
-    Create a favorite association for the given location and user.
+    Create a favorite association for given location and user.
 
     Will not check whether the association already exists.
 
-    :param session: AsyncSession
+    :param db: Async database session.
     :param location_id: ``LocationId`` of the location
     :param user_id: ``UserId`` of the user
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: ``None``
     """
     stmt = insert(LocationUserFavorite).values(user_id=user_id, location_id=location_id)
-    await session.exec(stmt)
-    await session.commit()
+    await db.exec(stmt)
+    if commit:
+        await db.commit()
 
 
 async def read_location_favorite(
-    session: AsyncSession, location_id: LocationId, user_id: UserId
+    db: AsyncSession, location_id: LocationId, user_id: UserId
 ) -> LocationUserFavorite | None:
     """
     Get location favorite by location and user ID.
 
 
-    :param session: Async database session.
+    :param db: Async database session.
     :param location_id: ``LocationId`` of the location.
     :param user_id: ``UserId`` of the user.
+
     :return: ``LocationUserFavorite`` if it exists, otherwise ``None``.
     """
     stmt = select(LocationUserFavorite).filter_by(
         location_id=location_id, user_id=user_id
     )
-    return (await session.exec(stmt)).one_or_none()
+    return (await db.exec(stmt)).one_or_none()
 
 
 async def delete_location_favorite(
-    session: AsyncSession, location_id: LocationId, user_id: UserId
+    db: AsyncSession, location_id: LocationId, user_id: UserId, commit: bool = True
 ) -> None:
     """
     Delete a favorite association for the given location and user.
 
     Will not check whether the association exists.
 
-    :param session: AsyncSession
+    :param db: AsyncSession
     :param location_id: ``LocationId`` of the location
     :param user_id: ``UserId`` of the user
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: ``None``
     """
     stmt = delete(LocationUserFavorite).filter_by(
         user_id=user_id, location_id=location_id
     )
-    await session.exec(stmt)
-    await session.commit()
+    await db.exec(stmt)
+    if commit:
+        await db.commit()
 
 
 async def read_favorite_locations_by_user_id(
@@ -185,6 +261,7 @@ async def read_favorite_locations_by_user_id(
 
     :param session: Async database session.
     :param user_id: ``UserId`` of the user.
+
     :return: List of existing location favorites.
     """
     stmt = (

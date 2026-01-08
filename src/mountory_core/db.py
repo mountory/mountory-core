@@ -48,9 +48,9 @@ async def init_db(
     commit_required = False
 
     for user in initial_users:
-        db_user = await crud.get_user_by_email(session=session, email=user.email)
+        db_user = await crud.get_user_by_email(db=session, email=user.email)
         if not db_user:
-            await crud.create_user(session=session, user_create=user, commit=False)
+            await crud.create_user(db=session, data=user, commit=False)
             commit_required = True
 
     if commit_required:
