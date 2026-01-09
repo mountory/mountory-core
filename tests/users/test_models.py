@@ -1,63 +1,7 @@
 from mountory_core.testing.utils import random_email, random_lower_string
 from pydantic import ValidationError
-from mountory_core.users.models import UserBase, UserCreate, UserRegister, UserUpdate
+from mountory_core.users.models import UserCreate, UserRegister, UserUpdate, User
 import pytest
-
-
-def test_user_base_requires_email() -> None:
-    with pytest.raises(ValidationError):
-        _ = UserBase()  # type: ignore
-
-    # todo: maybe check content of exception?
-
-
-def test_user_base_email_invalid_raises() -> None:
-    email = random_lower_string()
-
-    with pytest.raises(ValidationError):
-        _ = UserBase(email=email)
-
-    # todo: maybe check content of exception?
-
-
-def test_user_base_email_valid() -> None:
-    email = random_email()
-
-    base = UserBase(email=email)
-
-    assert base.email == email
-
-
-def test_user_base_defaults() -> None:
-    email = random_email()
-    base = UserBase(email=email)
-
-    assert base.email == email
-    assert base.is_active is True
-    assert base.is_superuser is False
-    assert base.full_name is None
-
-
-@pytest.mark.parametrize("is_active", (True, False))
-def test_user_base_is_active(is_active: bool) -> None:
-    base = UserBase(email=random_email(), is_active=is_active)
-
-    assert base.is_active == is_active
-
-
-@pytest.mark.parametrize("is_superuser", (True, False))
-def test_user_base_is_admin(is_superuser: bool) -> None:
-    base = UserBase(email=random_email(), is_superuser=is_superuser)
-
-    assert base.is_superuser == is_superuser
-
-
-def test_user_base_full_name() -> None:
-    full_name = random_lower_string()
-
-    base = UserBase(email=random_email(), full_name=full_name)
-
-    assert base.full_name == full_name
 
 
 def test_user_create_email_required() -> None:
@@ -72,6 +16,92 @@ def test_user_create_password_required() -> None:
         _ = UserCreate(email=random_email())  # type: ignore
 
     # todo: maybe check content of exception
+
+
+def test_user_create_defaults() -> None:
+    email = random_email()
+    password = random_lower_string()
+    create = UserCreate(email=email, password=password)
+
+    assert create.email == email
+    assert create.password == password
+    assert create.is_active is True
+    assert create.is_superuser is False
+    assert create.full_name is None
+
+
+def test_user_register_email_required() -> None:
+    with pytest.raises(ValidationError):
+        _ = UserRegister(password=random_lower_string())  # type: ignore
+
+    # todo: maybe check content of exception
+
+
+def test_user_register_password_required() -> None:
+    with pytest.raises(ValidationError):
+        _ = UserRegister(email=random_email())  # type: ignore
+
+    # todo: maybe check content of exception
+
+
+def test_user_register_defaults() -> None:
+    email = random_email()
+    password = random_lower_string()
+    register = UserRegister(email=email, password=password)
+
+    assert register.email == email
+    assert register.password == password
+    assert register.full_name is None
+
+
+def test_user_update_defaults() -> None:
+    # this also tests whether all fields are optional
+    update = UserUpdate()
+
+    assert update.email is None
+    assert update.password is None
+    assert update.is_active is None
+    assert update.is_superuser is None
+    assert update.full_name is None
+
+    assert update.model_dump(exclude_unset=True) == {}
+
+
+def test_user_update_email_password_full_name() -> None:
+    email = random_email()
+    password = random_lower_string()
+    full_name = random_lower_string()
+
+    update = UserUpdate(email=email, password=password, full_name=full_name)
+
+    assert update.email == email
+    assert update.password == password
+    assert update.full_name == full_name
+
+
+@pytest.mark.parametrize("email", ("testmail", "mail@mail", "mail@", "@mail.com"))
+@pytest.mark.parametrize("model", (UserCreate, UserRegister, UserUpdate))
+def test_user_model_email_invalid(
+    model: type[UserCreate | UserRegister | UserUpdate | User], email: str
+) -> None:
+    password = random_lower_string()
+
+    with pytest.raises(ValidationError) as e:
+        _ = model(email=email, password=password)
+
+    print(e)
+    # todo: maybe check content of exception
+
+
+@pytest.mark.parametrize("email", ("test@mail.com",))
+@pytest.mark.parametrize("model", (UserCreate, UserRegister, UserUpdate))
+def test_user_model_email_valid(
+    model: type[UserCreate | UserRegister | UserUpdate | User], email: str
+) -> None:
+    password = random_lower_string()
+    user_model = model(email=email, password=password)
+
+    assert user_model.email == email
 
 
 @pytest.mark.parametrize("length", range(10))
@@ -104,20 +134,6 @@ def test_user_model_password_valid(
 ) -> None:
     password = random_lower_string(length)
 
-    create = model(password=password, email=random_email())
+    user_model = model(password=password, email=random_email())
 
-    assert create.password == password
-
-
-def test_user_register_email_required() -> None:
-    with pytest.raises(ValidationError):
-        _ = UserRegister(password=random_lower_string())  # type: ignore
-
-    # todo: maybe check content of exception
-
-
-def test_user_register_password_required() -> None:
-    with pytest.raises(ValidationError):
-        _ = UserRegister(email=random_email())  # type: ignore
-
-    # todo: maybe check content of exception
+    assert user_model.password == password

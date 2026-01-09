@@ -163,10 +163,11 @@ async def test_update_user(async_db: AsyncSession) -> None:
     email = random_email()
     user_in = UserCreate(email=email, password=password, is_superuser=True)
     user = await crud.create_user(db=async_db, data=user_in)
+
     new_password = random_lower_string()
-    user_in_update = UserUpdate(password=new_password, is_superuser=True)
+    data = UserUpdate(password=new_password, is_superuser=True)
     if user.id is not None:
-        await crud.update_user(db=async_db, user=user, data=user_in_update)
+        await crud.update_user(db=async_db, user=user, data=data)
     user_2 = await async_db.get(User, user.id)
     assert user_2
     assert user.email == user_2.email
@@ -175,6 +176,47 @@ async def test_update_user(async_db: AsyncSession) -> None:
     # cleanup
     await async_db.delete(user)
     await async_db.commit()
+
+
+@pytest.mark.anyio
+async def test_update_user_empty_data(async_db: AsyncSession) -> None:
+    user_create = UserCreate(
+        email=random_email(),
+        password=random_lower_string(),
+        full_name=random_lower_string(),
+        is_superuser=False,
+        is_active=True,
+    )
+    user = await crud.create_user(db=async_db, data=user_create)
+    expected = user.model_dump()
+
+    data = UserUpdate()
+
+    res = await crud.update_user(db=async_db, user=user, data=data)
+    assert res.model_dump() == expected
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.model_dump() == expected
+
+
+@pytest.mark.anyio
+async def test_update_user_remove_full_name(async_db: AsyncSession) -> None:
+    user_create = UserCreate(
+        email=random_email(),
+        password=random_lower_string(),
+        full_name=random_lower_string(),
+    )
+    user = await crud.create_user(db=async_db, data=user_create)
+
+    data = UserUpdate(full_name=None)
+
+    res = await crud.update_user(db=async_db, user=user, data=data)
+    assert res.full_name is None
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.full_name is None
 
 
 @pytest.mark.anyio
