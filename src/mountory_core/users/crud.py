@@ -16,7 +16,7 @@ async def create_user(
     logger.debug(f"create user {data.email}, create object")
 
     """
-    Create a new user
+    Create a new user.
 
     :param db: Database session
     :param data: ``UserCreate`` instance with data for new user.
@@ -24,17 +24,19 @@ async def create_user(
 
     :return: Created ``User`` instance.
     """
-    db_obj = User.model_validate(
-        data, update={"hashed_password": get_password_hash(data.password)}
+    model_data = data.model_dump(exclude_unset=True)
+    logger.debug(f"create user {data.email}, create object {model_data}")
+    user = User.model_validate(
+        model_data, update={"hashed_password": get_password_hash(data.password)}
     )
 
     logger.debug(f"create user {data.email}, add object to database")
-    db.add(db_obj)
+    db.add(user)
     if commit:
         logger.debug(f"create user {data.email}, commit transaction")
         await db.commit()
-        await db.refresh(db_obj)
-    return db_obj
+        await db.refresh(user)
+    return user
 
 
 async def read_user_by_id(*, db: AsyncSession, user_id: UserId) -> User | None:
@@ -92,6 +94,8 @@ async def update_user(
     """
     Update a ``User`` instance.
 
+    Fields of ``data`` set to ``None`` will be ignored, except for ``full_name``.
+
     :param db: Database session.
     :param user: ``User`` instance to update.
     :param data: ``UserUpdate`` instance with data to update.
@@ -101,7 +105,15 @@ async def update_user(
     """
     logger.info(f"update user, {user.id}")
 
-    model_data = data.model_dump(exclude_unset=True)
+    model_data = data.model_dump(exclude_unset=True, exclude_none=True)
+    if "full_name" in data.model_fields_set:
+        logger.debug(f"update user {user.id}, update full_name={data.full_name}")
+        model_data["full_name"] = data.full_name
+
+    if not model_data:
+        logger.debug(f"update user {user.id}, nothing to update")
+        return user
+
     extra_data = {}
     if "password" in model_data:
         logger.debug(f"update user {user.id}, hash password")
