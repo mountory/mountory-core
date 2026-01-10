@@ -140,9 +140,11 @@ async def test_create_db_manufacturer_with_user_accesses(
 async def test_create_db_manufacturer_with_user_access_none(
     async_db: AsyncSession, create_user: CreateUserProtocol
 ) -> None:
-    user_access = {None: (create_user().id,)}
+    access_role = None
 
-    manufacturer = await create_db_manufacturer(db=async_db, user_access=user_access)
+    manufacturer = await create_db_manufacturer(
+        db=async_db, user_access={access_role: (create_user().id,)}
+    )
 
     stmt = select(ManufacturerAccess).filter_by(manufacturer_id=manufacturer.id)
     db_accesses = (await async_db.exec(stmt)).all()
