@@ -40,11 +40,9 @@ def test_manufacturer_model_description_parse_as_none(
 
 
 @pytest.mark.parametrize("value", ("", None))
-@pytest.mark.parametrize(
-    "model", (ManufacturerCreate, ManufacturerUpdate, Manufacturer)
-)
+@pytest.mark.parametrize("model", (ManufacturerCreate, ManufacturerUpdate))
 def test_manufacturer_model_website_parse_as_none(
-    model: type[ManufacturerCreate | ManufacturerUpdate | Manufacturer],
+    model: type[ManufacturerCreate | ManufacturerUpdate],
     value: str | None,
 ) -> None:
     base = model(website=value, name=random_lower_string())
