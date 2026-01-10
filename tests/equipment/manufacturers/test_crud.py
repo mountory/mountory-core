@@ -78,7 +78,10 @@ async def test_create_manufacturer_optinal_values(
     async_db: AsyncSession, value: str | None
 ) -> None:
     create = ManufacturerCreate(
-        name=random_lower_string(), short_name=value, description=value, website=value
+        name=random_lower_string(),
+        short_name=value,
+        description=value,
+        website=value,  # ty:ignore[invalid-argument-type] # website is of type HttpUrl but is able to parse strings. Maybe this should be typed differently?
     )
     manufacturer = await crud.create_manufacturer(db=async_db, data=create)
 
