@@ -4,9 +4,8 @@ from pydantic_core import PydanticUseDefault
 from typing import Annotated, Any
 
 from pydantic import HttpUrl, BeforeValidator, StringConstraints, AwareDatetime
+from sqlalchemy import TypeDecorator, String, Dialect
 from sqlmodel import Field
-
-from mountory_core.locations.types import HttpUrlType
 
 
 def none_if_empty_str(value: Any) -> str | None:
@@ -57,6 +56,21 @@ OptionalNoneEmptyString = [
     DefaultIfNoneValidator,
     NoneIfEmptyStrValidator,
 ]
+
+
+class HttpUrlType(TypeDecorator[HttpUrl]):
+    impl = String(2083)
+    cache_ok = True
+    python_type = HttpUrl | None
+
+    def process_bind_param(self, value: Any, dialect: Dialect) -> str:
+        return str(value)
+
+    def process_result_value(self, value, dialect) -> HttpUrl | None:
+        return HttpUrl(url=value) if value and value != "None" else None
+
+    def process_literal_param(self, value: Any, dialect: Dialect) -> str:
+        return str(value)
 
 
 OptionalWebsiteField = Annotated[
