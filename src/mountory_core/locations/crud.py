@@ -32,7 +32,7 @@ def create_location(
     """
     logger.info(f"create_location, {data=}")
 
-    model_data = data.model_dump(exclude={"activity_types", "activity_types_new"})
+    model_data = data.model_dump(exclude={"activity_types"})
     logger.debug(f"create_location, create object, {model_data=}")
     db_obj = Location.model_validate(model_data)
 
@@ -76,27 +76,29 @@ def read_locations(
     location_types: Collection[LocationType] | None = None,
     parent_ids: Collection[LocationId | None] | None = None,
 ) -> tuple[list[Location], int]:
-    """
+    """Read locations from the database.
 
     :param db: Database session.
-    :param skip: Entries to skip when returning results.
+    :param skip: Number of entries to skip when returning results.
     :param limit: Number of entries to return.
     :param location_types: Location types to filter by.
+            An empty collection is equivalent to not providing the parameter.
     :param parent_ids: Ids of parent locations to filter by.
+            An empty collection is equivalent to not providing the parameter.
 
     :return: List of locations limited by ``limit`` and the total count of locations matching the given parameters.
     """
-
     logger.info(f"read_locations, {skip=}, {limit=}, {location_types=}, {parent_ids=}")
     stmt = select(Location)
     stmt_count = select(func.count()).select_from(Location)
 
-    # ignore empty lists as well
+    # ignore empty collections as well
     if location_types:
         types_filter = col(Location.location_type).in_(location_types)
         stmt = stmt.filter(types_filter)
         stmt_count = stmt_count.filter(types_filter)
 
+    # ignore empty collections as well
     if parent_ids:
         parent_filter = create_filter_in_with_none(col(Location.parent_id), parent_ids)
         stmt = stmt.filter(parent_filter)
@@ -174,9 +176,7 @@ def update_location_by_id(
     """
     logger.info(f"update_location_by_id, {location_id=}, {data=}")
 
-    model_data = data.model_dump(
-        exclude_unset=True, exclude={"activity_types", "activity_types_new"}
-    )
+    model_data = data.model_dump(exclude_unset=True, exclude={"activity_types"})
 
     logger.debug(
         f"update_location_by_id, update location in database, data={model_data}"

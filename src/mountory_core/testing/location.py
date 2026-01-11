@@ -5,7 +5,7 @@ from typing import Protocol
 from sqlmodel import Session, col, delete
 
 from mountory_core.locations.models import Location
-from mountory_core.locations.types import LocationType
+from mountory_core.locations.types import LocationType, LocationId
 from mountory_core.testing.utils import random_http_url, random_lower_string
 
 
@@ -15,6 +15,7 @@ def create_random_location(
     abbreviation: str | None = None,
     website: str | None = None,
     loc_type: LocationType | None = None,
+    parent: Location | LocationId | None = None,
     *,
     commit: bool = True,
 ) -> Location:
@@ -29,6 +30,7 @@ def create_random_location(
     :param website: Overwrite for ``website``
     :param commit: Whether to commit the transaction to the database.
     :param loc_type: Overwrite for ``loc_type`` (default=LocationType.other)
+    :param parent: Set parent location
     :return: Created Location.
     """
     if name is None:
@@ -42,6 +44,10 @@ def create_random_location(
     location = Location(
         name=name, website=website, abbreviation=abbreviation, location_type=loc_type
     )
+    if isinstance(parent, Location):
+        location.parent = parent
+    elif parent is not None:
+        location.parent_id = parent
     db.add(location)
     if commit:
         db.commit()
@@ -56,6 +62,7 @@ class CreateLocationProtocol(Protocol):
         abbreviation: str | None = ...,
         website: str | None = ...,
         loc_type: LocationType | None = ...,
+        parent: Location | LocationId | None = ...,
         *,
         commit: bool = ...,
         cleanup: bool = ...,
@@ -77,6 +84,7 @@ def create_location_context(
         abbreviation: str | None = None,
         website: str | None = None,
         loc_type: LocationType | None = None,
+        parent: Location | LocationId | None = None,
         *,
         commit: bool = True,
         cleanup: bool = True,
@@ -87,6 +95,7 @@ def create_location_context(
             abbreviation=abbreviation,
             website=website,
             loc_type=loc_type,
+            parent=parent,
             commit=commit,
         )
         if cleanup:

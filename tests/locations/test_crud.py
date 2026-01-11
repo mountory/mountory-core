@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import uuid
 
 import pytest
@@ -11,7 +13,7 @@ from mountory_core.locations.models import (
     LocationUpdate,
     LocationUserFavorite,
 )
-from mountory_core.locations.types import LocationId, LocationType
+from mountory_core.locations.types import LocationType
 from mountory_core.testing.location import (
     CreateLocationProtocol,
     create_random_location,
@@ -35,8 +37,7 @@ def test_create_location(db: Session) -> None:
     )
     location = crud.create_location(db=db, data=location_create)
     assert location.name == name
-    assert hasattr(location, "id")
-    assert type(location.id) is LocationId
+    assert location.id is not None
 
     # cleanup
     db.delete(location)
@@ -51,8 +52,7 @@ def test_create_location_duplicate_name(
     location_create = LocationCreate(name=existing.name)
     location = crud.create_location(db=db, data=location_create)
     assert location.name == existing.name
-    assert hasattr(location, "id")
-    assert type(location.id) is LocationId
+    assert location.id is not None
 
     # cleanup
     db.delete(location)
@@ -77,110 +77,147 @@ def test_read_location_by_id_not_existing(db: Session) -> None:
     assert location is None
 
 
-@pytest.mark.parametrize("loc_type", LocationType)
-def test_read_locations_filter_by_types(
-    db: Session,
-    create_location: CreateLocationProtocol,
-    loc_type: LocationType,
-) -> None:
-    _ = [create_location(loc_type=loc_type, commit=False) for _ in range(10)]
-    db.commit()
-
-    existing = (db.exec(select(Location).filter_by(location_type=loc_type))).all()
-
-    db_location, count = crud.read_locations(
-        db=db, skip=0, limit=len(existing), location_types=[loc_type]
-    )
-    assert count == len(existing)
-    check_lists(db_location, existing)
+@dataclass
+class ReadLocationsSetup:
+    locations: list[Location]
+    parents: list[Location]
 
 
-def test_read_locations_filter_by_types_none(
-    db: Session, create_location: CreateLocationProtocol
-) -> None:
-    for t in LocationType:
-        create_location(loc_type=t, commit=False)
-    db.commit()
-    existing = db.exec(select(Location)).all()
+class TestReadLocations:
+    @pytest.fixture(scope="class")
+    def setup(
+        self, db: Session, create_location_c: CreateLocationProtocol
+    ) -> ReadLocationsSetup:
+        parent_target = create_location_c(commit=False)
+        parent_other = create_location_c(commit=False)
+        parent_empty = create_location_c(commit=False)
 
-    db_locations, count = crud.read_locations(
-        db=db, skip=0, limit=len(existing), location_types=None
-    )
-    assert count == len(existing)
-    check_lists(db_locations, existing)
+        parents = [parent_target, parent_other, parent_empty]
 
+        all_locations = [*parents]
+        all_locations.extend(
+            create_location_c(loc_type=loc_type, parent=parent, commit=False)
+            for loc_type in LocationType
+            for parent in (parent_target, parent_other, None)
+        )
 
-def test_read_locations_filter_by_types_empty_list(
-    db: Session, create_location: CreateLocationProtocol
-) -> None:
-    for t in LocationType:
-        create_location(loc_type=t, commit=False)
-    db.commit()
-    existing = db.exec(select(Location)).all()
+        db.commit()
 
-    db_locations, count = crud.read_locations(
-        db=db, skip=0, limit=len(existing), location_types=[]
-    )
-    assert count == len(existing)
-    check_lists(db_locations, existing)
+        return ReadLocationsSetup(locations=all_locations, parents=parents)
 
+    @pytest.mark.parametrize("loc_type", LocationType)
+    def test_read_locations_filter_by_types(
+        self,
+        db: Session,
+        setup: ReadLocationsSetup,
+        loc_type: LocationType,
+    ) -> None:
+        expected = [loc for loc in setup.locations if loc.location_type == loc_type]
 
-def test_read_locations_filter_by_parent_ids(
-    db: Session, create_location: CreateLocationProtocol
-) -> None:
-    parents = [create_location(commit=False) for _ in range(2)]
-    parent_id = parents[0].id
+        db_location, count = crud.read_locations(
+            db=db, skip=0, limit=100, location_types=[loc_type]
+        )
+        assert count == len(expected)
+        check_lists(db_location, expected)
 
-    target_location = create_location(commit=False)
-    target_location.parent_id = parent_id
-    db.commit()
+    def test_read_locations_filter_by_types_none(
+        self, db: Session, setup: ReadLocationsSetup
+    ) -> None:
+        expected = setup.locations
 
-    db_locations, count = crud.read_locations(
-        db=db, skip=0, limit=len(parents), parent_ids=[parent_id]
-    )
-    assert count == 1
-    assert db_locations == [target_location]
+        db_locations, count = crud.read_locations(
+            db=db, skip=0, limit=100, location_types=None
+        )
+        assert count == len(expected)
+        check_lists(db_locations, expected)
 
+    def test_read_locations_filter_by_types_empty_list(
+        self, db: Session, setup: ReadLocationsSetup
+    ) -> None:
+        expected = setup.locations
 
-def test_read_locations_filter_by_parent_ids_not_existing(
-    db: Session, create_location: CreateLocationProtocol
-) -> None:
-    for _ in range(2):
-        create_location(commit=False)
-    parent_id = uuid.uuid4()
+        db_locations, count = crud.read_locations(
+            db=db, skip=0, limit=100, location_types=[]
+        )
+        assert count == len(expected)
+        check_lists(db_locations, expected)
 
-    db_locations, count = crud.read_locations(
-        db=db, skip=0, limit=100, parent_ids=[parent_id]
-    )
+    def test_read_locations_filter_by_parent_ids(
+        self, db: Session, setup: ReadLocationsSetup
+    ) -> None:
+        parent = setup.parents[0]
+        expected = [loc for loc in setup.locations if loc.parent_id == parent.id]
 
-    assert count == 0
-    assert db_locations == []
+        db_locations, count = crud.read_locations(
+            db=db, skip=0, limit=100, parent_ids=[parent.id]
+        )
+        assert count == len(expected)
+        check_lists(db_locations, expected)
 
+    def test_read_locations_filter_by_parent_ids_not_existing(
+        self, db: Session, setup: ReadLocationsSetup
+    ) -> None:
+        parent_id = uuid.uuid4()
 
-def test_read_locations_filter_by_parent_ids_none(
-    db: Session, create_location: CreateLocationProtocol
-) -> None:
-    locations = [create_location(commit=False) for _ in range(2)]
-    db.commit()
+        db_locations, count = crud.read_locations(
+            db=db, skip=0, limit=100, parent_ids=[parent_id]
+        )
 
-    db_locations, count = crud.read_locations(
-        db=db, skip=0, limit=len(locations), parent_ids=None
-    )
-    assert count == len(locations)
-    check_lists(db_locations, locations)
+        assert count == 0
+        assert db_locations == []
 
+    def test_read_locations_filter_by_parent_ids_none(
+        self, db: Session, setup: ReadLocationsSetup
+    ) -> None:
+        expected = setup.locations
 
-def test_read_locations_filter_by_parent_ids_empty_list(
-    db: Session, create_location: CreateLocationProtocol
-) -> None:
-    locations = [create_location(commit=False) for _ in range(2)]
-    db.commit()
+        db_locations, count = crud.read_locations(
+            db=db, skip=0, limit=len(expected), parent_ids=None
+        )
+        assert count == len(expected)
+        check_lists(db_locations, expected)
 
-    db_locations, count = crud.read_locations(
-        db=db, skip=0, limit=len(locations), parent_ids=[]
-    )
-    assert count == len(locations)
-    check_lists(db_locations, locations)
+    def test_read_locations_filter_by_parent_ids_empty_list(
+        self, db: Session, setup: ReadLocationsSetup
+    ) -> None:
+        expected = setup.locations
+
+        db_locations, count = crud.read_locations(
+            db=db, skip=0, limit=len(expected), parent_ids=[]
+        )
+        assert count == len(expected)
+        check_lists(db_locations, expected)
+
+    def test_read_locations_filter_by_parent_ids_no_locations(
+        self, db: Session, setup: ReadLocationsSetup
+    ) -> None:
+        parent = setup.parents[2]
+
+        db_locations, count = crud.read_locations(
+            db=db, skip=0, limit=100, parent_ids=[parent.id]
+        )
+
+        assert count == 0
+        assert db_locations == []
+
+    @pytest.mark.parametrize("loc_type", LocationType)
+    def test_read_locations_filter_location_types_parent_ids(
+        self, db: Session, setup: ReadLocationsSetup, loc_type: LocationType
+    ) -> None:
+        parent = setup.parents[0]
+
+        expected = [
+            loc
+            for loc in setup.locations
+            if loc.location_type == loc_type and loc.parent_id == parent.id
+        ]
+
+        db_locations, count = crud.read_locations(
+            db=db, skip=0, limit=100, parent_ids=[parent.id], location_types=[loc_type]
+        )
+
+        assert count == len(expected)
+        assert db_locations == expected
 
 
 def test_update_location(db: Session, create_location: CreateLocationProtocol) -> None:
