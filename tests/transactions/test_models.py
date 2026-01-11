@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from mountory_core.activities.models import Activity
@@ -12,66 +12,75 @@ from mountory_core.transactions.models import (
     Transaction,
     TransactionCreate,
     TransactionUpdate,
-    TransactionBase,
 )
 from sqlmodel import Session, select
 
 
-def test_transaction_base_no_required_fields() -> None:
-    _ = TransactionBase()
+@pytest.mark.parametrize("model", (TransactionCreate, TransactionUpdate, Transaction))
+def test_transaction_model_no_required_fields(
+    model: type[TransactionCreate | TransactionUpdate | Transaction],
+) -> None:
+    _ = model()
 
 
-def test_transaction_base_defaults() -> None:
-    base = TransactionBase()
+@pytest.mark.parametrize("model", (TransactionCreate, TransactionUpdate))
+def test_transaction_model_defaults(
+    model: type[TransactionCreate | TransactionUpdate],
+) -> None:
+    transaction_model = model()
 
-    assert base.user_id is None
-    assert base.activity_id is None
-    assert base.location_id is None
-    assert base.date is None
-    assert base.amount is None
-    assert base.category is None
-    assert base.description is None
-    assert base.note is None
+    assert transaction_model.user_id is None
+    assert transaction_model.activity_id is None
+    assert transaction_model.location_id is None
+    assert transaction_model.date is None
+    assert transaction_model.amount is None
+    assert transaction_model.category is None
+    assert transaction_model.description is None
+    assert transaction_model.note is None
 
 
-@pytest.mark.parametrize("model", (TransactionBase, Transaction))
-def test_transaction_model_description_empty_str_is_none(model) -> None:
+@pytest.mark.parametrize("model", (TransactionCreate, TransactionUpdate, Transaction))
+def test_transaction_model_description_empty_str_is_none(
+    model: type[TransactionCreate | TransactionUpdate | Transaction],
+) -> None:
     m = model(description="")
 
     if isinstance(m, Transaction):
-        pytest.skip("No idea why this fails :/")
+        pytest.xfail("No idea why this fails :/")
     assert m.description is None
 
 
-@pytest.mark.parametrize("model", (TransactionBase, Transaction))
-def test_transaction_model_description_none_is_none(model) -> None:
+@pytest.mark.parametrize("model", (TransactionCreate, TransactionUpdate, Transaction))
+def test_transaction_model_description_none_is_none(
+    model: type[TransactionCreate | TransactionUpdate | Transaction],
+) -> None:
     m = model(description=None)
 
     assert m.description is None
 
 
-@pytest.mark.parametrize("model", (TransactionBase, Transaction))
-def test_transaction_model_note_empty_str_is_none(model) -> None:
+@pytest.mark.parametrize("model", (TransactionCreate, TransactionUpdate, Transaction))
+def test_transaction_model_note_empty_str_is_none(
+    model: type[TransactionCreate | TransactionUpdate | Transaction],
+) -> None:
     m = model(note="")
     if isinstance(m, Transaction):
-        pytest.skip("No idea why this fails :/")
+        pytest.xfail("No idea why this fails :/")
 
     assert m.note is None
 
 
-@pytest.mark.parametrize("model", (TransactionBase, Transaction))
-def test_transaction_model_note_none_is_none(model) -> None:
+@pytest.mark.parametrize("model", (TransactionCreate, TransactionUpdate, Transaction))
+def test_transaction_model_note_none_is_none(
+    model: type[TransactionCreate | TransactionUpdate | Transaction],
+) -> None:
     m = model(note=None)
 
     assert m.note is None
 
 
-def test_transaction_no_required_fields() -> Transaction:
-    return Transaction()
-
-
 def test_transaction_default_values() -> None:
-    transaction = test_transaction_no_required_fields()
+    transaction = Transaction()
 
     assert type(transaction.id) is uuid.UUID
 
@@ -89,7 +98,7 @@ def test_transaction_default_values() -> None:
 
 
 def test_create_transaction_plain(db: Session) -> None:
-    transaction = test_transaction_no_required_fields()
+    transaction = Transaction()
     db.add(transaction)
     db.commit()
     db.refresh(transaction)
@@ -253,10 +262,11 @@ def test_create_transaction_with_values(
 ) -> None:
     activity = create_activity(commit=False)
     location = create_location(commit=False)
+    date = datetime.now()
     values = {
         "amount": 5003,
         "category": "Other",
-        "date": datetime.now(),
+        "date": date,
         "description": random_lower_string(),
         "note": random_lower_string(),
         "activity": activity,
@@ -274,7 +284,8 @@ def test_create_transaction_with_values(
     assert transaction.location == location
     assert transaction.amount == values["amount"]
     assert transaction.category == values["category"]
-    assert transaction.date == values["date"]
+    assert transaction.date == date.replace(tzinfo=timezone.utc)
+    assert transaction.description == values["description"]
     assert transaction.description == values["description"]
     assert transaction.note == values["note"]
 
@@ -319,7 +330,7 @@ def test_update_transaction(db: Session, with_previous: bool) -> None:
     assert db_transaction.location is None
     assert db_transaction.amount == values["amount"]
     assert db_transaction.category == values["category"]
-    assert db_transaction.date == values["date"]
+    assert db_transaction.date == values["date"].replace(tzinfo=timezone.utc)
     assert db_transaction.description == values["description"]
     assert db_transaction.note == values["note"]
 
@@ -378,12 +389,8 @@ def test_delete_activity_does_not_cascade(db: Session) -> None:
     db.commit()
 
 
-def test_transaction_create_no_required_fields() -> TransactionCreate:
-    return TransactionCreate()
-
-
 def test_transaction_create_default_values() -> None:
-    create = test_transaction_create_no_required_fields()
+    create = TransactionCreate()
 
     assert create.activity_id is None
     assert create.location_id is None
@@ -395,12 +402,8 @@ def test_transaction_create_default_values() -> None:
     assert create.note is None
 
 
-def test_transaction_update_no_required_fields() -> TransactionUpdate:
-    return TransactionUpdate()
-
-
 def test_transaction_update_default_values() -> None:
-    update = test_transaction_update_no_required_fields()
+    update = TransactionUpdate()
 
     assert update.activity_id is None
     assert update.location_id is None

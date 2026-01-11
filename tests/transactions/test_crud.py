@@ -14,6 +14,7 @@ from mountory_core.transactions.models import Transaction, TransactionCreate
 from sqlmodel import Session, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from mountory_core.transactions.types import TransactionCategory
 from mountory_core.users.types import UserId
 
 
@@ -83,7 +84,7 @@ def test_create_transaction_with_location(
 def test_create_transaction_with_values(db: Session) -> None:
     create = TransactionCreate(
         amount=135326,
-        category="Other",
+        category=TransactionCategory.OTHER,
         date=datetime.now(),
         description=random_lower_string(),
         note=random_lower_string(),
