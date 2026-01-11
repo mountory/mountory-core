@@ -1,11 +1,13 @@
+from mountory_core.locations.types import LocationId
+from mountory_core.types import DefaultIfEmptyStrValidator, AwareDateTimeField
+from pydantic import StringConstraints, UUID4, Field
 import enum
-import uuid
-from datetime import UTC, datetime
-from typing import TypedDict
+from datetime import UTC, datetime, timedelta
+from typing import TypedDict, Annotated
 
 from sqlalchemy import DateTime, TypeDecorator
 
-ActivityId = uuid.UUID
+ActivityId = UUID4
 
 
 class ActivityTypeGroups(enum.Enum):
@@ -54,13 +56,68 @@ class TZDateTime(TypeDecorator[datetime]):
     def process_bind_param(self, value, dialect):
         if isinstance(value, datetime):
             if not value.tzinfo or value.tzinfo.utcoffset(value) is None:
-                pass
+                # set tzinfo explicitly to None
                 value = value.replace(tzinfo=None)
             else:
+                # convert to utc and remove tzinfo
                 value = value.astimezone(UTC).replace(tzinfo=None)
         return value
 
     def process_result_value(self, value, dialect):
         if isinstance(value, datetime):
+            # stored values are assumed to be utc
             value = value.replace(tzinfo=UTC)
         return value
+
+
+ActivityTitleField = Annotated[
+    str, Field(description="Activity title."), StringConstraints(max_length=255)
+]
+"""Title field for an activity.
+
+Must not be longer than 255 characters.
+"""
+
+OptionalActivityTitleField = Annotated[
+    ActivityTitleField | None,
+    Field(default=None),
+    DefaultIfEmptyStrValidator,
+]
+"""Optional title field for an activity.
+
+Parses empty string as None, Otherwise, same as ``ActivityTitleField``.
+"""
+
+
+ActivityDescriptionField = Annotated[
+    str | None,
+    Field(default=None, description="Description of the activity."),
+    StringConstraints(max_length=2048),
+    DefaultIfEmptyStrValidator,
+]
+"""Optional description field for an activity.
+
+Empty strings will be parsed as None.
+"""
+
+
+ActivityStartField = Annotated[
+    AwareDateTimeField | None,
+    Field(default=None, description="Start of the activity."),
+]
+"""Optional field representing the start of an activity.
+
+NOTE: Assumes the passed date to have timezone information.
+If not timezone is set, UTC will be assumed.
+"""
+
+
+ActivityDurationField = Annotated[
+    timedelta | None, Field(default=None, description="Duration of the activity.")
+]
+"""Optional field representing the duration of the activity."""
+
+
+ActivityLocationField = Annotated[LocationId | None, Field(default=None)]
+
+ActivityLocationIdField = Annotated[LocationId | None, Field(default=None)]

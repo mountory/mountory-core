@@ -16,6 +16,7 @@ from mountory_core.types import (
     OptionalWebsiteField,
     NoneIfEmptyStrValidator,
     DefaultIfNoneValidator,
+    DefaultIfEmptyStrValidator,
 )
 from mountory_core.users.models import User
 from mountory_core.users.types import UserId
@@ -25,6 +26,17 @@ if TYPE_CHECKING:
 
 
 LocationNameField = Annotated[str, StringConstraints(min_length=3, max_length=255)]
+"""Name field for a location."""
+
+OptionalLocationNameField = Annotated[
+    LocationNameField | None, DefaultIfEmptyStrValidator, Field(default=None)
+]
+"""Optional name field for a location.
+
+Parses empty string as ``None``. Otherwise same as ``LocationNameField``.
+"""
+
+
 AbbreviationField = Annotated[
     OptionalStr,
     Field(default=None),

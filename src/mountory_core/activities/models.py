@@ -1,50 +1,32 @@
-from mountory_core.types import DefaultIfEmptyStrValidator
 import uuid
 from datetime import datetime, timedelta
 from typing import Annotated
 
-from pydantic import PrivateAttr, StringConstraints
+from pydantic import BaseModel, PrivateAttr, StringConstraints
 from sqlalchemy import Column, SQLColumnExpression, func
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlmodel import Field, Relationship, SQLModel, col, select
 from sqlmodel._compat import SQLModelConfig
 
-from mountory_core.locations.models import (
-    Location,
-    LocationNameField,
-)
-from mountory_core.locations.types import LocationId
-from mountory_core.transactions.models import Transaction
-from mountory_core.transactions.utils import calc_transactions_total
-from mountory_core.users.models import User
-from mountory_core.users.types import UserId
-
-from .types import (
+from mountory_core.activities.types import (
+    ActivityDescriptionField,
+    ActivityDurationField,
     ActivityId,
+    ActivityLocationField,
+    ActivityStartField,
+    ActivityTitleField,
     ActivityType,
+    OptionalActivityTitleField,
     ParentPathDict,
     TZDateTime,
 )
-
-ActivityTitleField = Annotated[
-    str, Field(description="Activity title."), StringConstraints(max_length=255)
-]
-ActivityLocationIdField = Annotated[
-    LocationId | None, Field(default=None, foreign_key="location.id")
-]
-
-
-# Shared properties
-class ActivityBase(SQLModel):
-    title: ActivityTitleField
-    description: Annotated[
-        str | None,
-        Field(default=None, description="Description of the activity."),
-        StringConstraints(max_length=2048),
-        DefaultIfEmptyStrValidator,
-    ] = None
-    start: datetime | None = Field(default=None, sa_column=Column(TZDateTime))
-    duration: timedelta | None = Field(default=None)
+from mountory_core.locations.models import Location
+from mountory_core.locations.types import LocationId
+from mountory_core.transactions.models import Transaction
+from mountory_core.transactions.utils import calc_transactions_total
+from mountory_core.types import DefaultIfEmptyStrValidator
+from mountory_core.users.models import User
+from mountory_core.users.types import UserId
 
 
 # Database Models:
@@ -66,10 +48,20 @@ class ActivityTypeAssociation(SQLModel, table=True):
     activity_type: ActivityType = Field(primary_key=True)
 
 
-class Activity(ActivityBase, table=True):
+class Activity(SQLModel, table=True):
     model_config = SQLModelConfig(ignored_types=(hybrid_property,))
 
+    title: ActivityTitleField
     id: ActivityId = Field(default_factory=uuid.uuid4, primary_key=True)
+    description: Annotated[
+        str | None,
+        Field(default=None),
+        StringConstraints(max_length=2048),
+        DefaultIfEmptyStrValidator,
+    ] = None
+    start: datetime | None = Field(default=None, sa_column=Column(TZDateTime))
+    duration: timedelta | None = Field(default=None)
+
     location_id: LocationId | None = Field(
         default=None, foreign_key="location.id", ondelete="SET NULL"
     )
@@ -147,16 +139,23 @@ class Activity(ActivityBase, table=True):
 # Non database models
 
 
-class ActivityCreate(ActivityBase):
-    location_id: LocationId | None = None
-    location: LocationNameField | None = None
+class ActivityCreate(BaseModel):
+    title: ActivityTitleField
+    description: ActivityDescriptionField = None
+    start: ActivityStartField = None
+    duration: ActivityDurationField = None
+    location_id: ActivityLocationField = None
     user_ids: set[UserId] | None = None
     types: set[ActivityType] | None = None
     parent_id: ActivityId | None = None
 
 
-class ActivityUpdate(ActivityBase):
-    location_id: LocationId | None = None
+class ActivityUpdate(BaseModel):
+    title: OptionalActivityTitleField = None
+    description: ActivityDescriptionField = None
+    start: ActivityStartField = None
+    duration: ActivityDurationField = None
+    location_id: ActivityLocationField = None
     user_ids: set[UserId] | None = None
     types: set[ActivityType] | None = None
     parent_id: ActivityId | None = None
