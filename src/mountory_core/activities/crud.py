@@ -37,9 +37,8 @@ def create_activity(
     logger.info(f"create_activity, {data=}")
 
     logger.debug("create_activity, create database object")
-    activity = Activity.model_validate(
-        data.model_dump(exclude={"location", "user_ids", "types"})
-    )
+    activity = Activity.model_validate(data.model_dump(exclude={"user_ids", "types"}))
+
     if data.types:
         logger.debug("create_activity, set activity types")
         activity.type_associations = [
@@ -121,6 +120,7 @@ def read_activities(
             Activity, col(Activity.id) == associated_types.c.activity_id
         )
 
+    # ignore empty collections as well
     if location_ids:
         filter_locs = create_filter_in_with_none(
             col(Activity.location_id), location_ids
@@ -128,7 +128,8 @@ def read_activities(
         stmt = stmt.filter(filter_locs)
         count_stmt = count_stmt.filter(filter_locs)
 
-    if parent_ids is not None:
+    # ignore empty collections as well
+    if parent_ids:
         filter_parents = create_filter_in_with_none(col(Activity.parent_id), parent_ids)
         stmt = stmt.filter(filter_parents)
         count_stmt = count_stmt.filter(filter_parents)
@@ -249,14 +250,14 @@ def update_activity_by_id(
     *,
     db: Session,
     activity_id: ActivityId,
-    activity_update: ActivityUpdate,
+    data: ActivityUpdate,
     commit: bool = True,
 ) -> None:
     """
 
     :param db: Database session
     :param activity_id: ``ActivityID`` of the activity to update.
-    :param activity_update: Data to update the activity. Unset fields will be ignored.
+    :param data: Data to update the activity. Unset fields will be ignored.
     :param commit: Whether to commit the database transaction. (Default: ``True``)
 
     :return: ``None``
@@ -266,13 +267,11 @@ def update_activity_by_id(
     if activity is None:
         return
 
-    update_data = activity_update.model_dump(
-        exclude_unset=True, exclude={"user_ids", "types"}
-    )
-    logger.debug(f"update_activity_by_id, update {activity_id} with {update_data=}")
-    activity.sqlmodel_update(update_data)
+    model_data = data.model_dump(exclude_unset=True, exclude={"user_ids", "types"})
+    logger.debug(f"update_activity_by_id, update {activity_id} with data={model_data}")
+    activity.sqlmodel_update(model_data)
 
-    user_ids = activity_update.user_ids
+    user_ids = data.user_ids
     if user_ids is not None:
         logger.debug(f"update_activity_by_id, handle user_ids, {user_ids=}")
         logger.debug("update_activity_by_id, delete existing user links")
@@ -284,7 +283,7 @@ def update_activity_by_id(
                 params=tuple({"user_id": user_id} for user_id in user_ids),
             )
 
-    types = activity_update.types
+    types = data.types
     if types is not None:
         logger.debug(f"update_activity_by_id, handle types, {types=}")
         logger.debug("update_activity_by_id, delete existing type associations")

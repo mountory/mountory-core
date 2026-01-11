@@ -1,16 +1,23 @@
+from pydantic.dataclasses import dataclass
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
+from typing import Collection
 
 import pytest
 from mountory_core.activities import crud
 from mountory_core.activities.models import Activity, ActivityCreate, ActivityUpdate
-from mountory_core.activities.types import ActivityType
+from mountory_core.activities.types import ActivityType, ActivityId
+from mountory_core.locations.models import Location
+from mountory_core.locations.types import LocationId
 from mountory_core.testing.activities import CreateActivityProtocol
 from mountory_core.testing.location import CreateLocationProtocol
 from mountory_core.testing.user import CreateUserProtocol
 from mountory_core.testing.utils import check_lists, random_lower_string
-from sqlmodel import Session, col, func, or_, select
+from sqlmodel import Session, col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+from mountory_core.users.models import User
+from mountory_core.users.types import UserId
 
 
 @pytest.mark.parametrize("user_count", (0, 1, 10))
@@ -147,117 +154,289 @@ def test_create_activity_start_with_timezone(db: Session) -> None:
     assert activity.start is not None
     assert activity.start.astimezone(UTC) == start
 
-
-def test_read_activity_by_id_not_existing(db: Session) -> None:
-    res = crud.read_activity_by_id(db=db, activity_id=uuid.uuid4())
-    assert res is None
-
-
-@pytest.mark.parametrize("count", (1, 10))
-def test_read_activity_by_user_id(
-    db: Session,
-    create_user: CreateUserProtocol,
-    create_activity: CreateActivityProtocol,
-    count: int,
-) -> None:
-    user = create_user(commit=False)
-    activities = [create_activity(users=[user], commit=False) for _ in range(count)]
+    # cleanup
+    db.delete(activity)
     db.commit()
 
-    db_activities, db_count = crud.read_activities_by_user_id(
-        db=db, user_id=user.id, skip=0, limit=100
+
+def test_read_activities_empty_db(db: Session) -> None:
+    res, count = crud.read_activities(db=db, skip=0, limit=500)
+
+    assert count == 0
+    assert res == []
+
+
+@dataclass
+class ReadActivitiesSetup:
+    users: list[User]
+    locations: list[Location]
+    activities: list[Activity]
+    parents: list[Activity]
+
+
+class TestReadActivities:
+    @pytest.fixture(scope="class")
+    def setup(
+        self,
+        db: Session,
+        create_user_c: CreateUserProtocol,
+        create_location_c: CreateLocationProtocol,
+        create_activity_c: CreateActivityProtocol,
+    ) -> ReadActivitiesSetup:
+        target_user = create_user_c(commit=False)
+        other_user = create_user_c(commit=False)
+        empty_user = create_user_c(commit=False)
+        all_users = [target_user, other_user, empty_user]
+
+        target_location = create_location_c(commit=False)
+        other_location = create_location_c(commit=False)
+        empty_location = create_location_c(commit=False)
+        all_locations = [target_location, other_location, empty_location]
+
+        all_parents = [create_activity_c(commit=False) for _ in range(2)]
+
+        all_data: list[Activity] = [*all_parents]
+
+        for user in (target_user, other_user):
+            for location in (target_location, other_location, None):
+                for activity_type in (*ActivityType, None):
+                    types = [activity_type] if activity_type is not None else []
+                    activity = create_activity_c(
+                        users=[user], location=location, types=types, commit=False
+                    )
+                    all_data.append(activity)
+
+        for parent in all_parents:
+            activity = create_activity_c(parent=parent, commit=False)
+            all_data.append(activity)
+
+        db.commit()
+
+        for d in all_data:
+            db.refresh(d)
+
+        return ReadActivitiesSetup(
+            users=all_users,
+            locations=all_locations,
+            activities=all_data,
+            parents=all_parents,
+        )
+
+    def test_read_activities_all(self, db: Session, setup: ReadActivitiesSetup) -> None:
+        expected = setup.activities
+
+        res, count = crud.read_activities(db=db, skip=0, limit=500)
+
+        assert count == len(expected)
+        check_lists(res, expected)
+
+    @pytest.mark.parametrize(
+        "parent_ids", ([], set(), None), ids=lambda v: f"parent_ids={v}"
     )
-
-    assert db_count == count
-    check_lists(db_activities, activities)
-
-
-@pytest.mark.parametrize("count", (1, 10))
-def test_read_activity_by_user_id_no_activities(
-    db: Session,
-    create_user: CreateUserProtocol,
-    create_activity: CreateActivityProtocol,
-    count: int,
-) -> None:
-    user = create_user()
-    _ = [create_activity(commit=False) for _ in range(count)]
-    db.commit()
-
-    db_activities = crud.read_activities_by_user_id(
-        db=db, user_id=user.id, skip=0, limit=100
+    @pytest.mark.parametrize(
+        "location_ids", ([], set(), None), ids=lambda v: f"location_ids={v}"
     )
+    def test_read_activities_filter_user_ids(
+        self,
+        db: Session,
+        setup: ReadActivitiesSetup,
+        location_ids: Collection[LocationId] | None,
+        parent_ids: Collection[ActivityId] | None,
+    ) -> None:
+        user = setup.users[0]
 
-    assert db_activities == ([], 0)
+        expected = [activity for activity in setup.activities if user in activity.users]
 
+        res, count = crud.read_activities(
+            db=db,
+            skip=0,
+            limit=500,
+            user_ids=[user.id],
+            location_ids=location_ids,
+            parent_ids=parent_ids,
+        )
 
-def test_read_activity_by_user_id_user_not_existing(db: Session) -> None:
-    user_id = uuid.uuid4()
-    db_activities = crud.read_activities_by_user_id(
-        db=db, user_id=user_id, skip=0, limit=100
+        assert count == len(expected)
+        check_lists(res, expected)
+
+    @pytest.mark.parametrize(
+        "parent_ids", ([], set(), None), ids=lambda v: f"parent_ids={v}"
     )
-
-    assert db_activities == ([], 0)
-
-
-@pytest.mark.parametrize("count", (1, 10))
-def test_read_activity_by_location_id(
-    db: Session,
-    create_location: CreateLocationProtocol,
-    create_activity: CreateActivityProtocol,
-    count: int,
-) -> None:
-    location = create_location(commit=False)
-    activities = [
-        create_activity(location=location, commit=False) for _ in range(count)
-    ]
-    db.commit()
-
-    res_activities, res_count = crud.read_activities_by_location_id(
-        db=db, location_id=location.id, skip=0, limit=100
+    @pytest.mark.parametrize(
+        "user_ids", ([], set(), None), ids=lambda v: f"user_ids={v}"
     )
+    def test_read_activities_filter_location_ids(
+        self,
+        db: Session,
+        setup: ReadActivitiesSetup,
+        user_ids: Collection[UserId] | None,
+        parent_ids: Collection[ActivityId] | None,
+    ) -> None:
+        location = setup.locations[0]
 
-    assert res_count == count
-    assert res_activities == activities
+        expected = [
+            activity
+            for activity in setup.activities
+            if activity.location_id == location.id
+        ]
 
+        res, count = crud.read_activities(
+            db=db,
+            skip=0,
+            limit=500,
+            location_ids=[location.id],
+            user_ids=user_ids,
+            parent_ids=parent_ids,
+        )
 
-@pytest.mark.parametrize("count", (1, 10))
-def test_read_activity_by_location_id_no_activities(
-    db: Session,
-    create_location: CreateLocationProtocol,
-    create_activity: CreateActivityProtocol,
-    count: int,
-) -> None:
-    location = create_location(commit=False)
-    _ = [create_activity(commit=False) for _ in range(count)]
-    db.commit()
+        assert count == len(expected)
+        assert res == expected
 
-    db_activities = crud.read_activities_by_location_id(
-        db=db,
-        location_id=location.id,
-        skip=0,
-        limit=100,
+    @pytest.mark.parametrize(
+        "location_ids", ([], set(), None), ids=lambda v: f"location_ids={v}"
     )
+    @pytest.mark.parametrize(
+        "user_ids", ([], set(), None), ids=lambda v: f"user_ids={v}"
+    )
+    def test_read_activities_filter_parent_ids(
+        self,
+        db: Session,
+        setup: ReadActivitiesSetup,
+        user_ids: Collection[UserId] | None,
+        location_ids: Collection[LocationId] | None,
+    ) -> None:
+        parent = setup.parents[0]
 
-    assert db_activities == ([], 0)
+        expected = [
+            activity for activity in setup.activities if activity.parent_id == parent.id
+        ]
 
+        res, count = crud.read_activities(
+            db=db,
+            skip=0,
+            limit=500,
+            parent_ids=[parent.id],
+            user_ids=user_ids,
+            location_ids=location_ids,
+        )
 
-@pytest.mark.parametrize("count", (0, 1, 10, 100))
-def test_read_activities(
-    db: Session, create_activity: CreateActivityProtocol, count: int
-) -> None:
-    existing_count = db.exec(select(func.count()).select_from(Activity)).one()
+        assert count == len(expected)
+        assert res == expected
 
-    activities = [create_activity(commit=False) for _ in range(count)]
-    db.commit()
+    @pytest.mark.parametrize("activity_type", ActivityType)
+    def test_read_activities_filter_activity_types(
+        self, db: Session, setup: ReadActivitiesSetup, activity_type: ActivityType
+    ) -> None:
+        expected = [
+            activity for activity in setup.activities if activity_type in activity.types
+        ]
 
-    db_activities, db_count = crud.read_activities(db=db, skip=0, limit=500)
+        res, count = crud.read_activities(
+            db=db, skip=0, limit=500, activity_types=[activity_type]
+        )
 
-    assert db_count == existing_count + count
-    missing = []
-    for activity in activities:
-        if activity not in db_activities:
-            missing.append(activity)
-    assert not missing, "Not all activities were found"
+        assert count == len(expected)
+        check_lists(res, expected)
+
+    def test_read_activities_filters_activity_types_empty(self, db: Session) -> None:
+        expected = []
+
+        res, count = crud.read_activities(db=db, skip=0, limit=500, activity_types=[])
+
+        assert count == len(expected)
+        assert res == expected
+
+    def test_read_activities_filter_user_ids_location_id_activity_types(
+        self, db: Session, setup: ReadActivitiesSetup
+    ) -> None:
+        user = setup.users[0]
+        location = setup.locations[0]
+        activity_type = ActivityType.CLIMBING_ALPINE
+
+        expected = [
+            activity
+            for activity in setup.activities
+            if activity_type in activity.types
+            and activity.location_id == location.id
+            and user in activity.users
+        ]
+
+        res, count = crud.read_activities(
+            db=db,
+            skip=0,
+            limit=500,
+            activity_types=[activity_type],
+            location_ids=[location.id],
+            user_ids=[user.id],
+        )
+
+        assert count == len(expected)
+        assert res == expected
+
+    def test_read_activities_by_user_id(
+        self, db: Session, setup: ReadActivitiesSetup
+    ) -> None:
+        user = setup.users[0]
+
+        expected = [a for a in setup.activities if user in a.users]
+
+        res, count = crud.read_activities_by_user_id(
+            db=db, skip=0, limit=500, user_id=user.id
+        )
+
+        assert count == len(expected)
+        check_lists(res, expected)
+
+    def test_read_activities_by_user_id_no_activities(
+        self, db: Session, setup: ReadActivitiesSetup
+    ) -> None:
+        user = setup.users[2]
+
+        res, count = crud.read_activities_by_user_id(
+            db=db, skip=0, limit=500, user_id=user.id
+        )
+
+        assert count == 0
+        assert res == []
+
+    def test_read_activity_by_id_not_existing(self, db: Session) -> None:
+        res = crud.read_activity_by_id(db=db, activity_id=uuid.uuid4())
+        assert res is None
+
+    def test_read_activities_by_location_id(
+        self, db: Session, setup: ReadActivitiesSetup
+    ) -> None:
+        location = setup.locations[0]
+
+        expected = [a for a in setup.activities if a.location_id == location.id]
+
+        res, count = crud.read_activities_by_location_id(
+            db=db, skip=0, limit=500, location_id=location.id
+        )
+
+        assert count == len(expected)
+        assert res == expected
+
+    def test_read_activities_by_location_id_no_activities(
+        self, db: Session, setup: ReadActivitiesSetup
+    ) -> None:
+        location = setup.locations[2]
+
+        res, count = crud.read_activities_by_location_id(
+            db=db, skip=0, limit=500, location_id=location.id
+        )
+
+        assert count == 0
+        assert res == []
+
+    def test_read_activities_by_location_id_not_existing(self, db: Session) -> None:
+        location_id = uuid.uuid4()
+        res, count = crud.read_activities_by_location_id(
+            db=db, skip=0, limit=500, location_id=location_id
+        )
+
+        assert count == 0
+        assert res == []
 
 
 @pytest.mark.parametrize("count", (0, 1, 10, 100))
@@ -386,14 +565,14 @@ def test_update_activity(
     update = ActivityUpdate(
         title=random_lower_string(),
         description=random_lower_string(),
-        start=datetime.now(),
+        start=datetime.now(timezone.utc),
         duration=timedelta(minutes=10),
         location_id=location.id,
         user_ids={u.id for u in users},
     )
     update.start = datetime.now()
 
-    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
+    crud.update_activity_by_id(db=db, activity_id=existing.id, data=update)
 
     db.refresh(existing)
 
@@ -408,7 +587,7 @@ def test_update_activity(
 
 def test_update_activity_not_existing(db: Session) -> None:
     update = ActivityUpdate(title=random_lower_string())
-    crud.update_activity_by_id(db=db, activity_id=uuid.uuid4(), activity_update=update)
+    crud.update_activity_by_id(db=db, activity_id=uuid.uuid4(), data=update)
 
 
 def test_update_activity_remove_users(
@@ -421,9 +600,9 @@ def test_update_activity_remove_users(
 
     check_lists(existing.users, users)
 
-    update = ActivityUpdate(title=existing.title, user_ids=[])
+    update = ActivityUpdate(title=existing.title, user_ids=set())
 
-    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
+    crud.update_activity_by_id(db=db, activity_id=existing.id, data=update)
     db.refresh(existing)
 
     assert existing.users == []
@@ -440,7 +619,7 @@ def test_update_activity_add_users(
     assert existing.users == users[:5]
 
     update = ActivityUpdate(title=existing.title, user_ids={u.id for u in users})
-    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
+    crud.update_activity_by_id(db=db, activity_id=existing.id, data=update)
     db.refresh(existing)
 
     check_lists(existing.users, users)
@@ -454,7 +633,7 @@ def test_update_activity_empty_update(
 
     update = ActivityUpdate(title=existing.title)
 
-    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
+    crud.update_activity_by_id(db=db, activity_id=existing.id, data=update)
     db.refresh(existing)
 
     assert existing.model_dump() == before
@@ -468,7 +647,7 @@ def test_update_activity_types_set_new(
 
     update = ActivityUpdate(title=existing.title, types={activity_type})
 
-    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
+    crud.update_activity_by_id(db=db, activity_id=existing.id, data=update)
 
     assert existing.types == {activity_type}
 
@@ -481,7 +660,7 @@ def test_update_activity_types_add_new(
     activity_types = {ActivityType.CLIMBING_ALPINE, activity_type}
     update = ActivityUpdate(title=existing.title, types=activity_types)
 
-    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
+    crud.update_activity_by_id(db=db, activity_id=existing.id, data=update)
 
     assert existing.types == activity_types
 
@@ -493,7 +672,7 @@ def test_update_activity_types_remove_type(
     existing = create_activity(types=[activity_type])
     update = ActivityUpdate(title=existing.title, types=set())
 
-    crud.update_activity_by_id(db=db, activity_id=existing.id, activity_update=update)
+    crud.update_activity_by_id(db=db, activity_id=existing.id, data=update)
 
     assert existing.types == set()
 

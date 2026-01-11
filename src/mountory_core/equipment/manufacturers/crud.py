@@ -33,7 +33,7 @@ async def create_manufacturer(
     :return: Created manufacturer.
     """
     logger.info(f"create_manufacturer {data.name}")
-    model_data = data.model_dump(exclude_unset=True, exclude={"accesses"})
+    model_data = data.model_dump(exclude_unset=True)
     logger.debug(f"create_manufacturer, create object, {model_data=}")
     manufacturer = Manufacturer.model_validate(model_data)
 
@@ -93,7 +93,7 @@ async def read_manufacturers(
     user_id: UserId | None = None,
     hidden: bool | None = None,
     access_roles: Collection[ManufacturerAccessRole] | None = None,
-) -> tuple[list[tuple[Manufacturer, ManufacturerAccessRole]], int]:
+) -> tuple[list[tuple[Manufacturer, ManufacturerAccessRole | None]], int]:
     """
     Read manufacturers from the database.
 
@@ -102,7 +102,7 @@ async def read_manufacturers(
     If it is set to ``False`` only public manufacturers will be returned.
 
     Filtering by access roles is only possible when ``user_id`` is provided.
-    Otherwise, the provided access roles will don't have an effect.
+    Otherwise, the provided access roles will not have any effect.
 
     :param db: Database session.
     :param skip: Entries to skip when returning results.
@@ -123,17 +123,22 @@ async def read_manufacturers(
     filter_access: ColumnElement[bool] | bool
 
     if user_id:
-        user_accesses = select(ManufacturerAccess).filter_by(user_id=user_id).subquery()
+        # preparation to support filtering by multiple UserIds
+        user_ids = [user_id]
+        user_filter = col(ManufacturerAccess.user_id).in_(user_ids)
+
+        user_accesses = select(ManufacturerAccess).filter(user_filter).subquery()
         stmt = select(Manufacturer, user_accesses.c.role)
 
         stmt = stmt.outerjoin_from(Manufacturer, user_accesses)
         count_stmt = count_stmt.outerjoin_from(Manufacturer, user_accesses)
 
         filter_user: ColumnElement[bool] | bool
-        if not (access_roles is None and hidden is False):
-            filter_user = col(user_accesses.c.user_id) == user_id
-        else:
+        if access_roles is None and hidden is False:
+            # we are looking only for public manufacturers, therefore 'disable' filtering for users here.
             filter_user = True
+        else:
+            filter_user = col(user_accesses.c.user_id) == user_id
 
         filter_roles: BinaryExpression[bool] | bool
         if access_roles:
@@ -176,7 +181,7 @@ async def update_manufacturer_by_id(
     *,
     db: AsyncSession,
     manufacturer_id: ManufacturerId,
-    _update: ManufacturerUpdate,
+    data: ManufacturerUpdate,
     commit: bool = True,
 ) -> None:
     """
@@ -184,19 +189,19 @@ async def update_manufacturer_by_id(
 
     :param db: Database session.
     :param manufacturer_id: ``ManufacturerId`` of the manufacturer to update.
-    :param _update: Data to update the manufacturer with.
+    :param data: Data to update the manufacturer with.
     :param commit: Whether to commit the database transaction. (Default: ``True``)
 
     :return: ``None``
     """
     logger.info(
-        f"update_manufacturer_by_id, manufacturer_id={manufacturer_id}, _update={_update=}"
+        f"update_manufacturer_by_id, manufacturer_id={manufacturer_id}, data={data=}"
     )
 
-    data = _update.model_dump(exclude_unset=True, exclude={"accesses"})
-    logger.debug(f"update_manufacturer_by_id, data={data}")
+    model_data = data.model_dump(exclude_unset=True)
+    logger.debug(f"update_manufacturer_by_id, data={model_data}")
 
-    stmt = update(Manufacturer).filter_by(id=manufacturer_id).values(data)
+    stmt = update(Manufacturer).filter_by(id=manufacturer_id).values(model_data)
     await db.exec(stmt)
 
     if commit:

@@ -1,3 +1,6 @@
+from mountory_core.users.models import User
+from pydantic.dataclasses import dataclass
+
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
@@ -23,6 +26,8 @@ from mountory_core.testing.utils import (
 from sqlalchemy import delete
 from sqlmodel import and_, col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+from mountory_core.users.types import UserId
 
 
 @pytest.mark.anyio
@@ -73,7 +78,10 @@ async def test_create_manufacturer_optinal_values(
     async_db: AsyncSession, value: str | None
 ) -> None:
     create = ManufacturerCreate(
-        name=random_lower_string(), short_name=value, description=value, website=value
+        name=random_lower_string(),
+        short_name=value,
+        description=value,
+        website=value,  # ty:ignore[invalid-argument-type] # website is of type HttpUrl but is able to parse strings. Maybe this should be typed differently?
     )
     manufacturer = await crud.create_manufacturer(db=async_db, data=create)
 
@@ -173,77 +181,216 @@ async def test_read_manufacturer_by_name_not_existing(
     assert result is None
 
 
-@pytest.mark.anyio
-@pytest.mark.parametrize("mode", ("all", "public", "hidden", "owned"))
-async def test_read_manufacturers(
-    async_db: AsyncSession,
-    create_user: CreateUserProtocol,
-    create_manufacturer: CreateManufacturerProtocol,
-    mode: str,
-) -> None:
-    existing = (await async_db.exec(select(Manufacturer))).all()
-    if existing:
-        pytest.skip("Preconditions not met. Manufacturers do already exist.")
+@dataclass
+class ManufacturerReadSetup:
+    users: list[User]
+    target_user: User
+    data: dict[
+        tuple[UserId | None, bool | None, ManufacturerAccessRole | None],
+        list[tuple[Manufacturer, ManufacturerAccessRole | None]],
+    ]
+    data_all: list[tuple[Manufacturer, None]]
 
-    user = create_user()
-    data_public = [
-        await create_manufacturer(hidden=False, commit=False) for _ in range(15)
-    ]
-    data_hidden = [
-        await create_manufacturer(hidden=True, commit=False) for _ in range(15)
-    ]
-    data_owned = [
-        await create_manufacturer(
-            hidden=True,
-            commit=False,
-            user_access={ManufacturerAccessRole.OWNER: [user.id]},
+
+class TestReadManufacturer:
+    @pytest.fixture(scope="class")
+    async def setup(
+        self,
+        async_db,
+        create_user_c: CreateUserProtocol,
+        create_manufacturer_c: CreateManufacturerProtocol,
+    ) -> ManufacturerReadSetup:
+        other_user = create_user_c(commit=False)
+        user = create_user_c()
+
+        users = [user, other_user]
+
+        data: dict[
+            tuple[UserId | None, bool | None, ManufacturerAccessRole | None],
+            list[tuple[Manufacturer, ManufacturerAccessRole | None]],
+        ] = {}
+
+        for hidden in (True, False):
+            for user_ in users:
+                for access_role in ManufacturerAccessRole:
+                    user_id = user_.id
+
+                    key = (user_id, hidden, access_role)
+
+                    manufacturer = await create_manufacturer_c(
+                        hidden=hidden,
+                        user_access={access_role: [user_id]},
+                        commit=False,
+                    )
+
+                    if key in data:
+                        data[key].append((manufacturer, access_role))
+                    else:
+                        data[key] = [(manufacturer, access_role)]
+
+            manufacturer = await create_manufacturer_c(hidden=hidden, commit=False)
+            if (None, hidden, None) in data:
+                data[(None, hidden, None)].append((manufacturer, None))
+            else:
+                data[(None, hidden, None)] = [(manufacturer, None)]
+
+        await async_db.commit()
+
+        all_data = [(m, None) for value in data.values() for m, _ in value]
+
+        for user in users:
+            data[(user.id, True, None)] = [
+                value
+                for role in ManufacturerAccessRole
+                for value in data[(user.id, True, role)]
+            ]
+        return ManufacturerReadSetup(
+            users=users, data=data, target_user=users[0], data_all=all_data
         )
-        for _ in range(15)
-    ]
 
-    await async_db.commit()
+    @pytest.mark.anyio
+    @pytest.mark.parametrize("hidden", (True, False))
+    @pytest.mark.parametrize("role", ManufacturerAccessRole)
+    async def test_read_manufacturers_filter_user_id_and_access_role_and_hidden(
+        self,
+        async_db: AsyncSession,
+        setup: ManufacturerReadSetup,
+        role: ManufacturerAccessRole,
+        hidden: bool,
+    ) -> None:
+        user = setup.target_user
+        data = setup.data
 
-    expected: list[Manufacturer]
-    if mode == "all":
-        user_id = None
-        hidden = None
-        expected = data_public + data_hidden + data_owned
-    elif mode == "public":
-        user_id = None
-        hidden = False
-        expected = data_public
-    elif mode == "hidden":
-        user_id = None
-        hidden = True
-        expected = data_hidden + data_owned
-    elif mode == "owned":
-        pytest.skip("TODO: fix this")
-        user_id = user.id
-        hidden = None
-        expected = data_owned
-    else:
-        user_id = None
-        hidden = None
-        expected = []
+        expected = data[(user.id, hidden, role)]
 
-    data, count = await crud.read_manufacturers(
-        db=async_db, skip=0, limit=100, hidden=hidden, user_id=user_id
-    )
+        manufacturers, db_count = await crud.read_manufacturers(
+            db=async_db,
+            skip=0,
+            limit=100,
+            hidden=hidden,
+            user_id=user.id,
+            access_roles=[role],
+        )
+        assert db_count == len(expected)
+        check_lists(manufacturers, expected, key=lambda m: m[0].id)
 
-    check_lists([d[0] for d in data], expected)
-    assert count == len(expected)
+    @pytest.mark.anyio
+    async def test_read_manufacturers_filter_user_id_with_access_role_and_hidden_none(
+        self, async_db: AsyncSession, setup: ManufacturerReadSetup
+    ) -> None:
+        users = setup.users
+        user = users[0]
+        other_user = users[1]
+        data = setup.data
 
+        expected = [
+            value
+            for role in ManufacturerAccessRole
+            for hidden in (True, False)
+            for value in data[(user.id, hidden, role)]
+        ]
+        expected.extend(
+            (manufacturer, None)
+            for role in ManufacturerAccessRole
+            for manufacturer, _ in data[(other_user.id, False, role)]
+        )
+        expected.extend(data[(None, False, None)])
 
-@pytest.mark.anyio
-async def test_read_manufacturers_not_existing(async_db: AsyncSession) -> None:
-    existing = (await async_db.exec(select(Manufacturer))).all()
-    if len(existing) > 0:
-        pytest.skip("Preconditions not fulfilled")
+        manufacturers, db_count = await crud.read_manufacturers(
+            db=async_db,
+            skip=0,
+            limit=100,
+            user_id=user.id,
+        )
 
-    data, count = await crud.read_manufacturers(db=async_db, skip=0, limit=100)
-    assert len(data) == 0
-    assert data == []
-    assert count == 0
+        assert db_count == len(expected)
+        check_lists(manufacturers, expected, key=lambda m: m[0].id)
+
+    @pytest.mark.anyio
+    async def test_read_manufacturers_filter_user_id_with_hidden_true_and_access_role_none(
+        self, async_db: AsyncSession, setup: ManufacturerReadSetup
+    ) -> None:
+        users = setup.users
+        user = users[0]
+        data = setup.data
+
+        expected = data[(user.id, True, None)]
+
+        manufacturers, db_count = await crud.read_manufacturers(
+            db=async_db,
+            skip=0,
+            limit=100,
+            user_id=user.id,
+            hidden=True,
+        )
+
+        assert db_count == len(expected)
+        check_lists(manufacturers, expected, key=lambda m: m[0].id)
+
+    @pytest.mark.anyio
+    async def test_read_manufacturers_filter_user_id_with_hidden_false_and_access_role_none(
+        self, async_db: AsyncSession, setup: ManufacturerReadSetup
+    ) -> None:
+        users = setup.users
+        user = users[0]
+        other_user = users[1]
+        data = setup.data
+
+        expected = (
+            [
+                value
+                for role in ManufacturerAccessRole
+                for value in data[(user.id, False, role)]
+            ]
+            + data[(None, False, None)]
+            + [
+                (manufacturer, None)
+                for role in ManufacturerAccessRole
+                for manufacturer, _ in data[(other_user.id, False, role)]
+            ]
+        )
+
+        manufacturers, db_count = await crud.read_manufacturers(
+            db=async_db,
+            skip=0,
+            limit=100,
+            user_id=user.id,
+            hidden=False,
+        )
+
+        assert db_count == len(expected)
+        check_lists(manufacturers, expected, key=lambda m: m[0].id)
+
+    @pytest.mark.anyio
+    async def test_read_manufacturers_all(
+        self, async_db: AsyncSession, setup: ManufacturerReadSetup
+    ) -> None:
+        expected = setup.data_all
+
+        manufacturers, db_count = await crud.read_manufacturers(
+            db=async_db, skip=0, limit=100
+        )
+
+        assert db_count == len(expected)
+        check_lists(manufacturers, expected, key=lambda m: m[0].id)
+
+    @pytest.mark.anyio
+    @pytest.mark.parametrize("hidden", (True, False))
+    async def test_read_manufacturers_hidden(
+        self, async_db: AsyncSession, setup: ManufacturerReadSetup, hidden: bool
+    ) -> None:
+        expected = [
+            (manufacturer, None)
+            for manufacturer, _ in setup.data_all
+            if manufacturer.hidden == hidden
+        ]
+
+        manufacturers, db_count = await crud.read_manufacturers(
+            db=async_db, skip=0, limit=100, hidden=hidden
+        )
+
+        assert db_count == len(expected)
+        check_lists(manufacturers, expected, key=lambda m: m[0].id)
 
 
 @pytest.mark.anyio
@@ -254,7 +401,7 @@ async def test_update_manufacturer_by_id_commit(commit: bool) -> None:
     update = ManufacturerUpdate(name=random_lower_string())
 
     await crud.update_manufacturer_by_id(
-        db=db, manufacturer_id=manufacturer_id, _update=update, commit=commit
+        db=db, manufacturer_id=manufacturer_id, data=update, commit=commit
     )
 
     if commit:
@@ -272,7 +419,7 @@ async def test_update_manufacturer_by_id(
     update = ManufacturerUpdate(name=random_lower_string())
 
     await crud.update_manufacturer_by_id(
-        db=async_db, manufacturer_id=existing.id, _update=update
+        db=async_db, manufacturer_id=existing.id, data=update
     )
 
     await async_db.refresh(existing)
@@ -296,7 +443,7 @@ async def test_update_manufacturer_by_id_set_optional_to_none(
     )
 
     await crud.update_manufacturer_by_id(
-        db=async_db, manufacturer_id=existing.id, _update=update
+        db=async_db, manufacturer_id=existing.id, data=update
     )
     await async_db.refresh(existing)
 
@@ -323,7 +470,7 @@ async def test_update_manufacturer_by_id_no_updates(
     update = ManufacturerUpdate(name=name)
 
     await crud.update_manufacturer_by_id(
-        db=async_db, manufacturer_id=existing.id, _update=update
+        db=async_db, manufacturer_id=existing.id, data=update
     )
     await async_db.refresh(existing)
 
@@ -341,7 +488,7 @@ async def test_update_manufacturer_by_id_not_existing_does_not_throw(
     update = ManufacturerUpdate(name=random_lower_string())
 
     await crud.update_manufacturer_by_id(
-        db=async_db, manufacturer_id=uuid.uuid4(), _update=update
+        db=async_db, manufacturer_id=uuid.uuid4(), data=update
     )
 
 

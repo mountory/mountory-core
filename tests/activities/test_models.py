@@ -1,10 +1,12 @@
 from datetime import UTC, datetime, timedelta, timezone
+from typing import Literal
 
 import pytest
 from mountory_core.activities.models import (
     Activity,
     ActivityUserLink,
-    ActivityBase,
+    ActivityCreate,
+    ActivityUpdate,
 )
 from mountory_core.testing.location import CreateLocationProtocol
 from mountory_core.testing.user import CreateUserProtocol
@@ -13,26 +15,83 @@ from mountory_core.transactions.models import Transaction
 from sqlmodel import Session, col, select
 
 
-def test_activity_base_description_empty_str_is_none() -> None:
-    base = ActivityBase(title=random_lower_string(), description="")
+def test_activity_creat_title_required() -> None:
+    with pytest.raises(ValueError):
+        _ = ActivityCreate()  # ty:ignore[missing-argument]
 
-    assert base.description is None
-
-
-def test_activity_base_description_none_is_none() -> None:
-    base = ActivityBase(title=random_lower_string(), description=None)
-
-    assert base.description is None
+    # todo: maybe check content of exception
 
 
-def test_activity_base_defaults() -> None:
+def test_activity_creat_defaults() -> None:
+    create = ActivityCreate(title=random_lower_string())
+
+    assert create.description is None
+    assert create.start is None
+    assert create.duration is None
+    assert create.location_id is None
+    assert create.user_ids is None
+    assert create.types is None
+    assert create.parent_id is None
+
+
+@pytest.mark.parametrize("value", ("", None))
+@pytest.mark.parametrize("model", (ActivityCreate, ActivityUpdate, Activity))
+def test_activity_model_description_parse_as_none(
+    model: type[ActivityCreate | ActivityUpdate], value: Literal[""] | None
+) -> None:
+    create = ActivityCreate(description=value, title=random_lower_string())
+
+    assert create.description is None
+
+
+@pytest.mark.parametrize("model", (ActivityCreate, ActivityUpdate))
+def test_activity_model_start_parse_int(
+    model: type[ActivityCreate | ActivityUpdate],
+) -> None:
+    activity_model = model(
+        start=0,  # ty:ignore[invalid-argument-type] thi
+        title=random_lower_string(),
+    )
+
+    assert isinstance(activity_model.start, datetime)
+    assert activity_model.start == datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize("model", (ActivityCreate, ActivityUpdate))
+def test_activity_model_start_parse_unaware_datetime(
+    model: type[ActivityCreate | ActivityUpdate],
+) -> None:
+    dt = datetime.now()
+
+    activity_model = model(start=dt, title=random_lower_string())
+
+    assert activity_model.start == dt.replace(tzinfo=timezone.utc)
+
+
+def test_activity_update_defaults() -> None:
+    update = ActivityUpdate()
+
+    assert update.title is None
+    assert update.description is None
+    assert update.start is None
+    assert update.duration is None
+    assert update.location_id is None
+    assert update.user_ids is None
+    assert update.types is None
+    assert update.parent_id is None
+
+
+def test_activity_defaults() -> None:
     title = random_lower_string()
-    base = ActivityBase(title=title)
+    base = Activity(title=title)
 
     assert base.title == title
     assert base.description is None
     assert base.start is None
     assert base.duration is None
+    assert base.duration is None
+    assert base.location_id is None
+    assert base.parent_id is None
 
 
 def test_activity_with_location_id(

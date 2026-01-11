@@ -1,26 +1,17 @@
+from pydantic.types import UUID4
 import enum
-import uuid
-from typing import Any, NamedTuple, TypedDict
+from typing import NamedTuple, TypedDict, Annotated
 
-from pydantic import BaseModel, HttpUrl
-from sqlalchemy import Dialect, String, TypeDecorator
+from pydantic import BaseModel, StringConstraints, Field
 
-LocationId = uuid.UUID
+from mountory_core.types import (
+    DefaultIfEmptyStrValidator,
+    OptionalStr,
+    DefaultIfNoneValidator,
+    NoneIfEmptyStrValidator,
+)
 
-
-class HttpUrlType(TypeDecorator[HttpUrl]):
-    impl = String(2083)
-    cache_ok = True
-    python_type = HttpUrl | None
-
-    def process_bind_param(self, value: Any, dialect: Dialect) -> str:
-        return str(value)
-
-    def process_result_value(self, value, dialect) -> HttpUrl | None:
-        return HttpUrl(url=value) if value and value != "None" else None
-
-    def process_literal_param(self, value: Any, dialect: Dialect) -> str:
-        return str(value)
+LocationId = UUID4
 
 
 class LocationType(str, enum.Enum):
@@ -61,3 +52,26 @@ class Seasonality(NamedTuple):
 class LocationSeasonality(BaseModel):
     total: Seasonality
     user: Seasonality | None = None
+
+
+LocationNameField = Annotated[str, StringConstraints(min_length=3, max_length=255)]
+"""Name field for a location."""
+
+OptionalLocationNameField = Annotated[
+    LocationNameField | None, DefaultIfEmptyStrValidator, Field(default=None)
+]
+"""Optional name field for a location.
+
+Parses empty string as ``None``. Otherwise same as ``LocationNameField``.
+"""
+
+
+LocationAbbreviationField = Annotated[
+    OptionalStr,
+    Field(default=None),
+    DefaultIfNoneValidator,
+    NoneIfEmptyStrValidator,
+    StringConstraints(min_length=2, max_length=255),
+]
+
+LocationTypeField = Annotated[LocationType, Field(default=LocationType.other)]

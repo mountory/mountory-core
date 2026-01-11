@@ -94,7 +94,8 @@ class CreateManufacturerProtocol(Protocol):
         description: str | None = ...,
         website: HttpUrl | str | None = ...,
         hidden: bool | None = ...,
-        user_access: Mapping[ManufacturerAccessRole, Iterable[UserId]] | None = ...,
+        user_access: Mapping[ManufacturerAccessRole | None, Iterable[UserId]]
+        | None = ...,
         *,
         commit: bool = ...,
         cleanup: bool = ...,

@@ -137,6 +137,13 @@ def create_user(db: Session) -> Generator[CreateUserProtocol]:
         yield factory
 
 
+@pytest.fixture(scope="class")
+def create_user_c(db: Session) -> Generator[CreateUserProtocol]:
+    """Returns factory to create class scoped users."""
+    with create_user_context(db) as factory:
+        yield factory
+
+
 @pytest.fixture(scope="function")
 def normal_user_and_pwd(create_user: CreateUserProtocol) -> tuple[User, str]:
     """Get a function scoped active non superuser and the plaintext password."""
@@ -161,9 +168,23 @@ def create_location(db: Session) -> Generator[CreateLocationProtocol, None, None
         yield factory
 
 
+@pytest.fixture(scope="class")
+def create_location_c(db: Session) -> Generator[CreateLocationProtocol, None, None]:
+    """Return factory to create class scoped locations."""
+    with create_location_context(db) as factory:
+        yield factory
+
+
 @pytest.fixture(scope="function")
 def create_activity(db: Session) -> Generator[CreateActivityProtocol, None, None]:
     """Return factory to create function scoped activities."""
+    with create_activity_context(db) as factory:
+        yield factory
+
+
+@pytest.fixture(scope="class")
+def create_activity_c(db: Session) -> Generator[CreateActivityProtocol, None, None]:
+    """Return factory to create class scoped activities."""
     with create_activity_context(db) as factory:
         yield factory
 
@@ -180,5 +201,14 @@ async def create_manufacturer(
     async_db: AsyncSession,
 ) -> AsyncGenerator[CreateManufacturerProtocol, None]:
     """Return factory to create function scoped manufacturers."""
+    async with create_manufacturer_context(async_db) as factory:
+        yield factory
+
+
+@pytest.fixture(scope="class")
+async def create_manufacturer_c(
+    async_db: AsyncSession,
+) -> AsyncGenerator[CreateManufacturerProtocol, None]:
+    """Return factory to create class scoped manufacturers."""
     async with create_manufacturer_context(async_db) as factory:
         yield factory
