@@ -168,9 +168,23 @@ def create_location(db: Session) -> Generator[CreateLocationProtocol, None, None
         yield factory
 
 
+@pytest.fixture(scope="class")
+def create_location_c(db: Session) -> Generator[CreateLocationProtocol, None, None]:
+    """Return factory to create class scoped locations."""
+    with create_location_context(db) as factory:
+        yield factory
+
+
 @pytest.fixture(scope="function")
 def create_activity(db: Session) -> Generator[CreateActivityProtocol, None, None]:
     """Return factory to create function scoped activities."""
+    with create_activity_context(db) as factory:
+        yield factory
+
+
+@pytest.fixture(scope="class")
+def create_activity_c(db: Session) -> Generator[CreateActivityProtocol, None, None]:
+    """Return factory to create class scoped activities."""
     with create_activity_context(db) as factory:
         yield factory
 

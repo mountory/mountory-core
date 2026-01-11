@@ -47,7 +47,7 @@ def test_update_activity_by_id_commit_default() -> None:
     activity_id = uuid.uuid4()
     data = ActivityUpdate(title=random_lower_string())
 
-    crud.update_activity_by_id(db=db, activity_id=activity_id, activity_update=data)
+    crud.update_activity_by_id(db=db, activity_id=activity_id, data=data)
 
     db.commit.assert_called_once()
 
@@ -58,9 +58,7 @@ def test_update_activity_by_id_commit() -> None:
     activity_id = uuid.uuid4()
     data = ActivityUpdate(title=random_lower_string())
 
-    crud.update_activity_by_id(
-        db=db, activity_id=activity_id, activity_update=data, commit=True
-    )
+    crud.update_activity_by_id(db=db, activity_id=activity_id, data=data, commit=True)
 
     db.commit.assert_called_once()
 
@@ -71,9 +69,7 @@ def test_update_activity_by_id_no_commit() -> None:
     activity_id = uuid.uuid4()
     data = ActivityUpdate(title=random_lower_string())
 
-    crud.update_activity_by_id(
-        db=db, activity_id=activity_id, activity_update=data, commit=False
-    )
+    crud.update_activity_by_id(db=db, activity_id=activity_id, data=data, commit=False)
 
     db.commit.assert_not_called()
 
