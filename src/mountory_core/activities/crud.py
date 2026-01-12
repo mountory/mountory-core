@@ -289,7 +289,7 @@ def update_activity_by_id(
         logger.debug("update_activity_by_id, delete existing type associations")
         db.exec(delete(ActivityTypeAssociation).filter_by(activity_id=activity_id))
         if types:
-            logger.debug("update_activity_by_id, add new tyoe associations")
+            logger.debug("update_activity_by_id, add new type associations")
             db.exec(
                 insert(ActivityTypeAssociation).values(activity_id=activity_id),
                 params=tuple({"activity_type": t} for t in types),

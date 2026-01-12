@@ -46,7 +46,7 @@ DefaultIfNoneValidator = BeforeValidator(default_if_none)
 
 
 AsAwareDateTimeValidator = BeforeValidator(datetime_as_aware)
-"""``BeforeValidator`` to set ``UTC`` as timezone on datetimes without ``tzinfo``."""
+"""``BeforeValidator`` to set ``UTC`` as timezone on ``datetime`` objects without ``tzinfo``."""
 
 OptionalStr = Annotated[str | None, NoneIfEmptyStrValidator]
 """Optional String, parsing empty strings as ``None``"""

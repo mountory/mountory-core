@@ -55,9 +55,9 @@ def disable_password_hashing() -> Generator[None, None, None]:
 @pytest.fixture(scope="module")
 def engine() -> Generator[Engine, None, None]:
     """
-    Fixture providing a databse engint to use.
+    Fixture providing a database engin to use.
 
-    Relies on `POSTGRES_SERVER`, `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` environment varibales to be present.
+    Relies on `POSTGRES_SERVER`, `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` environment variables to be present.
 
     :return: Database engine.
     """

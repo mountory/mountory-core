@@ -91,6 +91,7 @@ def create_db_activity(
     :param users: Provide the activity users.
     :param types: Provide the activity types.
     :param location: Provide the activity location.
+    :param parent: ``Activity`` or ``ActivityId`` to set as the parent activity.
     :param commit: Whether to commit the transaction to the database.
     :return: Created activity.
     """

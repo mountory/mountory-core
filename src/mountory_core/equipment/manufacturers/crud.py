@@ -291,7 +291,8 @@ async def set_manufacturer_accesses(
     for access in accesses:
         await set_manufacturer_access(db=db, **access, commit=False)
     logger.info("set_manufacturer_accesses, commit transaction")
-    await db.commit()
+    if commit:
+        await db.commit()
 
 
 async def read_manufacturer_user_access(
