@@ -1,6 +1,6 @@
 [project]
 name = "mountory-core"
-version = "0.3.1"
+version = "0.3.2"
 description = "Core backend functionality of the mountory package."
 readme = "README.md"
 authors = [
