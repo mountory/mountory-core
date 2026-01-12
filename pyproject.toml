@@ -38,9 +38,3 @@ addopts = ["--import-mode=importlib"]
 
 [project.entry-points.pytest11]
 mountory_core = "mountory_core.pytest_plugin"
-
-[tool.pyrefly]
-project-includes = [
-    "**/*.py*",
-    "**/*.ipynb",
-]
