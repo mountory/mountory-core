@@ -44,7 +44,7 @@ def patch_password_hashing(*modules: str) -> Generator[None, None, None]:
 type KeyType[O, K] = Callable[[O], K]
 
 
-def check_lists[O: Any, K: (str, uuid.UUID)](
+def check_lists[O: Any, K: (str | uuid.UUID)](
     actual: Sequence[O],
     expected: Sequence[O],
     key: KeyType[O, K] = lambda o: o.id,

@@ -33,8 +33,20 @@ dev = [
 requires = ["uv_build>=0.9.18,<0.10.0"]
 build-backend = "uv_build"
 
+[tool.ty.analysis]
+# Disable support for `type: ignore` comments
+respect-type-ignore-comments = false
+
 [tool.pytest]
 addopts = ["--import-mode=importlib"]
 
 [project.entry-points.pytest11]
 mountory_core = "mountory_core.pytest_plugin"
+
+[tool.mypy]
+strict = true
+enable_error_code = [
+    "ignore-without-code"
+]
+warn_unused_ignores = true
+exclude = [".venv"]

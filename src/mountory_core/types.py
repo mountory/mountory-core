@@ -66,7 +66,7 @@ class HttpUrlType(TypeDecorator[HttpUrl]):
     def process_bind_param(self, value: Any, dialect: Dialect) -> str:
         return str(value)
 
-    def process_result_value(self, value, dialect) -> HttpUrl | None:
+    def process_result_value(self, value: Any, dialect: Dialect) -> HttpUrl | None:
         return HttpUrl(url=value) if value and value != "None" else None
 
     def process_literal_param(self, value: Any, dialect: Dialect) -> str:

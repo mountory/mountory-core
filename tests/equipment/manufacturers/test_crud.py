@@ -74,14 +74,14 @@ async def test_create_manufacturer_defaults(async_db: AsyncSession) -> None:
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("value", (None, ""))
-async def test_create_manufacturer_optinal_values(
+async def test_create_manufacturer_optional_values(
     async_db: AsyncSession, value: str | None
 ) -> None:
     create = ManufacturerCreate(
         name=random_lower_string(),
         short_name=value,
         description=value,
-        website=value,  # ty:ignore[invalid-argument-type] # website is of type HttpUrl but is able to parse strings. Maybe this should be typed differently?
+        website=value,  # type:ignore[arg-type] # ty:ignore[invalid-argument-type] # website is of type HttpUrl but is able to parse strings. Maybe this should be typed differently?
     )
     manufacturer = await crud.create_manufacturer(db=async_db, data=create)
 
@@ -196,7 +196,7 @@ class TestReadManufacturer:
     @pytest.fixture(scope="class")
     async def setup(
         self,
-        async_db,
+        async_db: AsyncSession,
         create_user_c: CreateUserProtocol,
         create_manufacturer_c: CreateManufacturerProtocol,
     ) -> ManufacturerReadSetup:

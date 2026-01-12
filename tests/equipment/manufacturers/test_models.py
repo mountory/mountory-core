@@ -45,7 +45,7 @@ def test_manufacturer_model_website_parse_as_none(
     model: type[ManufacturerCreate | ManufacturerUpdate],
     value: str | None,
 ) -> None:
-    base = model(website=value, name=random_lower_string())
+    base = model(website=value, name=random_lower_string())  # type:ignore[arg-type]
 
     assert base.website is None
 
@@ -78,7 +78,7 @@ def test_manufacturer_create_defaults() -> None:
 
 def test_manufacturer_create_without_name_throws() -> None:
     with pytest.raises(ValidationError):
-        _ = ManufacturerCreate()  # ty:ignore[missing-argument]
+        _ = ManufacturerCreate()  # type:ignore[call-arg]  # ty:ignore[missing-argument]
 
     # todo: maybe check content of exception
 

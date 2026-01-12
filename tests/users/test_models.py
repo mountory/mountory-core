@@ -6,14 +6,14 @@ import pytest
 
 def test_user_create_email_required() -> None:
     with pytest.raises(ValidationError):
-        _ = UserCreate(password=random_lower_string())  # type: ignore
+        _ = UserCreate(password=random_lower_string())  # type:ignore[call-arg] # ty:ignore[missing-argument]
 
     # todo: maybe check content of exception
 
 
 def test_user_create_password_required() -> None:
     with pytest.raises(ValidationError):
-        _ = UserCreate(email=random_email())  # type: ignore
+        _ = UserCreate(email=random_email())  # type:ignore[call-arg] # ty:ignore[missing-argument]
 
     # todo: maybe check content of exception
 
@@ -32,14 +32,14 @@ def test_user_create_defaults() -> None:
 
 def test_user_register_email_required() -> None:
     with pytest.raises(ValidationError):
-        _ = UserRegister(password=random_lower_string())  # type: ignore
+        _ = UserRegister(password=random_lower_string())  # type:ignore[call-arg] # ty:ignore[missing-argument]
 
     # todo: maybe check content of exception
 
 
 def test_user_register_password_required() -> None:
     with pytest.raises(ValidationError):
-        _ = UserRegister(email=random_email())  # type: ignore
+        _ = UserRegister(email=random_email())  # type:ignore[call-arg]  # ty:ignore[missing-argument]
 
     # todo: maybe check content of exception
 

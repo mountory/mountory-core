@@ -35,7 +35,7 @@ def test_create_location(db: Session) -> None:
     location_create = LocationCreate(
         name=name,
         abbreviation=abbreviation,
-        website=website,  # ty:ignore[invalid-argument-type]
+        website=website,  # type:ignore[arg-type] # ty:ignore[invalid-argument-type]
     )
     location = crud.create_location(db=db, data=location_create)
     assert location.name == name

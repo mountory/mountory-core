@@ -39,6 +39,26 @@ jobs:
       # ruff is installed as part of project dependencies
       - name: Ruff check
         run: uv run --frozen -- ruff check src tests
+
+  type-checking:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Install UV
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.18"
+          enable-cache: true
+      - name: Install project
+        run: uv sync --locked --all-extras --dev
       # ty is installed as part of project dependencies
       - name: Ty check
         run: uv run --frozen -- ty check src tests
+      # mypy is installed as part of the dependencies
+      - name: mypy
+        run: uv run --frozen -- mypy src tests

@@ -5,7 +5,7 @@ from mountory_core.transactions.utils import calc_transactions_total
 
 
 def test_calc_transactions_total_empty_collection() -> None:
-    transactions = []
+    transactions: list[Transaction] = []
 
     res = calc_transactions_total(transactions)
 
@@ -48,7 +48,7 @@ def test_calc_transactions_total_transactions_negative_amounts() -> None:
 
 def test_calc_transactions_total_with_user_ids_empty_collection() -> None:
     user_id = uuid.uuid4()
-    transactions = []
+    transactions: list[Transaction] = []
 
     res = calc_transactions_total(transactions, [user_id])
 

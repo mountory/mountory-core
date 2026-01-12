@@ -309,10 +309,10 @@ async def read_favorite_locations_by_user_id(
     stmt = (
         select(Location)
         .options(
-            selectinload(Location.activity_type_associations),  # type: ignore[arg-type]
-            selectinload(Location.parent, recursion_depth=10),  # type: ignore[arg-type]
-            selectinload(Location.locations, recursion_depth=10).selectinload(  # type: ignore[arg-type]
-                Location.activity_type_associations  # type: ignore[arg-type]
+            selectinload(Location.activity_type_associations),  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+            selectinload(Location.parent, recursion_depth=10),  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+            selectinload(Location.locations, recursion_depth=10).selectinload(  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+                Location.activity_type_associations  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
             ),
         )
         .join(LocationUserFavorite)

@@ -61,7 +61,7 @@ def engine() -> Generator[Engine, None, None]:
 
     :return: Database engine.
     """
-    config = CoreSettings()  # ty:ignore[missing-argument]
+    config = CoreSettings()  # type:ignore[call-arg]  # ty:ignore[missing-argument]
     engine = create_engine(config.SQLALCHEMY_DATABASE_URI.unicode_string())
 
     SQLModel.metadata.drop_all(bind=engine)
@@ -75,12 +75,12 @@ async def async_engine() -> AsyncGenerator[AsyncEngine, None]:
     """
     Fixture providing a async database engine.
 
-    Relies on `POSTGRES_SERVER`, `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` environment varibales to be present.
+    Relies on `POSTGRES_SERVER`, `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` environment variables to be present.
 
     :return: Async database engine.
     """
 
-    config = CoreSettings()  # ty:ignore[missing-argument]
+    config = CoreSettings()  # type:ignore[call-arg]  # ty:ignore[missing-argument]
 
     print(config)
 

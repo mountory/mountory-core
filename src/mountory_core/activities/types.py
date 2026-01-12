@@ -3,9 +3,9 @@ from mountory_core.types import DefaultIfEmptyStrValidator, AwareDateTimeField
 from pydantic import StringConstraints, UUID4, Field
 import enum
 from datetime import UTC, datetime, timedelta
-from typing import TypedDict, Annotated
+from typing import TypedDict, Annotated, Any
 
-from sqlalchemy import DateTime, TypeDecorator
+from sqlalchemy import DateTime, TypeDecorator, Dialect
 
 ActivityId = UUID4
 
@@ -53,7 +53,7 @@ class TZDateTime(TypeDecorator[datetime]):
     impl = DateTime
     cache_ok = True
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param[T: Any](self, value: T, dialect: Dialect) -> T | datetime:
         if isinstance(value, datetime):
             if not value.tzinfo or value.tzinfo.utcoffset(value) is None:
                 # set tzinfo explicitly to None
@@ -63,7 +63,7 @@ class TZDateTime(TypeDecorator[datetime]):
                 value = value.astimezone(UTC).replace(tzinfo=None)
         return value
 
-    def process_result_value(self, value, dialect):
+    def process_result_value[T: Any](self, value: T, dialect: Dialect) -> T | datetime:
         if isinstance(value, datetime):
             # stored values are assumed to be utc
             value = value.replace(tzinfo=UTC)

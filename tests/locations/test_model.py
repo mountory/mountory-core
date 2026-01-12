@@ -53,14 +53,14 @@ def test_location_model_abbreviation_parse_as_none(
 def test_location_model_website_parse_as_none(
     model: type[LocationCreate | LocationUpdate], value: None | Literal[""]
 ) -> None:
-    location_model = model(website=value, name=random_lower_string())
+    location_model = model(website=value, name=random_lower_string())  # type:ignore[arg-type]
 
     assert location_model.website is None
 
 
 def test_location_create_name_required() -> None:
     with pytest.raises(ValidationError):
-        _ = LocationCreate()  # ty:ignore[missing-argument]
+        _ = LocationCreate()  # type:ignore[call-arg]   # ty:ignore[missing-argument]
 
     # todo: maybe check content of exception
 

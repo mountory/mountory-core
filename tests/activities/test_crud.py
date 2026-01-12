@@ -339,7 +339,7 @@ class TestReadActivities:
         check_lists(res, expected)
 
     def test_read_activities_filters_activity_types_empty(self, db: Session) -> None:
-        expected = []
+        expected: list[Activity] = []
 
         res, count = crud.read_activities(db=db, skip=0, limit=500, activity_types=[])
 

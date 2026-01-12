@@ -17,7 +17,7 @@ from sqlmodel import Session, col, select
 
 def test_activity_creat_title_required() -> None:
     with pytest.raises(ValueError):
-        _ = ActivityCreate()  # ty:ignore[missing-argument]
+        _ = ActivityCreate()  # type:ignore[call-arg]  # ty:ignore[missing-argument] # type:ignore
 
     # todo: maybe check content of exception
 
@@ -49,7 +49,7 @@ def test_activity_model_start_parse_int(
     model: type[ActivityCreate | ActivityUpdate],
 ) -> None:
     activity_model = model(
-        start=0,  # ty:ignore[invalid-argument-type] thi
+        start=0,  # type:ignore[arg-type] # this is valid, pydantic will try to parse a date from it.
         title=random_lower_string(),
     )
 

@@ -103,9 +103,7 @@ async def test_create_location_favorite_commit_default() -> None:
     location_id = uuid.uuid4()
     user_id = uuid.uuid4()
 
-    _ = await crud.create_location_favorite(
-        db=db, location_id=location_id, user_id=user_id
-    )
+    await crud.create_location_favorite(db=db, location_id=location_id, user_id=user_id)
 
     db.commit.assert_called_once()
 
@@ -117,7 +115,7 @@ async def test_create_location_favorite_no_commit() -> None:
     location_id = uuid.uuid4()
     user_id = uuid.uuid4()
 
-    _ = await crud.create_location_favorite(
+    await crud.create_location_favorite(
         db=db, location_id=location_id, user_id=user_id, commit=False
     )
 
@@ -131,9 +129,7 @@ async def test_delete_location_favorite_commit_default() -> None:
     location_id = uuid.uuid4()
     user_id = uuid.uuid4()
 
-    _ = await crud.delete_location_favorite(
-        db=db, location_id=location_id, user_id=user_id
-    )
+    await crud.delete_location_favorite(db=db, location_id=location_id, user_id=user_id)
 
     db.commit.assert_called_once()
 
@@ -145,7 +141,7 @@ async def test_delete_location_favorite_no_commit() -> None:
     location_id = uuid.uuid4()
     user_id = uuid.uuid4()
 
-    _ = await crud.delete_location_favorite(
+    await crud.delete_location_favorite(
         db=db, location_id=location_id, user_id=user_id, commit=False
     )
 

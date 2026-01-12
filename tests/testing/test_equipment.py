@@ -1,3 +1,7 @@
+from collections.abc import Sequence
+from typing import Mapping
+
+from mountory_core.users.types import UserId
 import pytest
 from mountory_core.equipment.manufacturers.models import (
     Manufacturer,
@@ -105,7 +109,9 @@ async def test_create_db_manufacturer_overrides(
 async def test_create_db_manufacturer_with_user_accesses(
     subtests: pytest.Subtests, async_db: AsyncSession, create_user: CreateUserProtocol
 ) -> None:
-    user_access = {access: (create_user().id,) for access in ManufacturerAccessRole}
+    user_access: Mapping[ManufacturerAccessRole | None, Sequence[UserId]] = {
+        access: (create_user().id,) for access in ManufacturerAccessRole
+    }
 
     manufacturer = await create_db_manufacturer(db=async_db, user_access=user_access)
 
@@ -129,10 +135,10 @@ async def test_create_db_manufacturer_with_user_accesses(
             )
 
     ## cleanup
-    stmt = delete(ManufacturerAccess).filter_by(manufacturer_id=manufacturer.id)
-    await async_db.exec(stmt)
-    stmt = delete(Manufacturer).filter_by(id=manufacturer.id)
-    await async_db.exec(stmt)
+    stmt_del = delete(ManufacturerAccess).filter_by(manufacturer_id=manufacturer.id)
+    await async_db.exec(stmt_del)
+    stmt_del = delete(Manufacturer).filter_by(id=manufacturer.id)
+    await async_db.exec(stmt_del)
     await async_db.commit()
 
 

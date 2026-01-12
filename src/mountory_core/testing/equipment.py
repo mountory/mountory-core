@@ -36,7 +36,7 @@ def create_rndm_manufacturer(
         "website": website,
     }
     if hidden is not None:
-        kwargs["hidden"] = hidden
+        kwargs["hidden"] = hidden  # type:ignore[assignment] # This is a valid assignment.
     return Manufacturer.model_validate(kwargs)
 
 
