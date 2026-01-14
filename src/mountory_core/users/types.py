@@ -10,11 +10,18 @@ UserId = UUID4
 EmailField = Annotated[EmailStr, StringConstraints(max_length=255)]
 OptionalEmailField = Annotated[EmailField | None, Field(default=None)]
 
-FullNameField = Annotated[str, StringConstraints(max_length=255)]
+UserFullNameStr = Annotated[str, StringConstraints(max_length=255)]
+
+FullNameField = Annotated[UserFullNameStr, Field(description="Full name of the user.")]
+
+
 OptionalFullNameField = Annotated[FullNameField | None, Field(default=None)]
 
-PasswordField = Annotated[
+
+PasswordStr = Annotated[
     str,
     StringConstraints(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH),
 ]
+
+PasswordField = Annotated[PasswordStr, Field(description="Password of the user.")]
 OptionalPasswordField = Annotated[PasswordField | None, Field(default=None)]
