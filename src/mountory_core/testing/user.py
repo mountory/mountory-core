@@ -1,6 +1,7 @@
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from typing import Protocol
+from typing_extensions import deprecated
 
 from sqlalchemy import delete
 from sqlmodel import Session, col
@@ -11,26 +12,30 @@ from mountory_core.users.models import User
 from mountory_core.users.types import UserId
 
 
-def _create_random_user(
+def create_default_user(
     email: str | None = None,
     password: str | None = None,
     full_name: str | None = None,
     is_active: bool | None = None,
     is_superuser: bool | None = None,
+    user_id: UserId | None = None,
     *,
     hash_password: bool = False,
 ) -> User:
     """
-    Create a random user.
+    Create a user with required field set to random values.
+
+    Fields that are not required are not set.
 
     Provide parameters will overwrite random values.
-    By default, password woo not be hashed to increase performance for tests.
+    By default, password will not be hashed to increase performance for tests.
 
     :param email: Overwrite ``username``.
     :param password: Overwrite ``password``.
     :param full_name: Overwrite ``full_name``
     :param is_active: Overwrite ``is_active``.
     :param is_superuser: Overwrite ``is_superuser``.
+    :param user_id: User ID to set for the user. Usually this should not be necessary.
     :param hash_password: Whether to hash the password or not. (default ``False``)
     :return: Created user.
     """
@@ -43,13 +48,62 @@ def _create_random_user(
     # maybe this should be handled in the model during validation?
     # At the moment if a value is explicitly set to `None` it will not default to its default value.
     # Therefore, we filter out values that should not be overridden instead of passing them as `None`.
-    kwargs = {}
+    kwargs: dict[str, bool | UserId] = {}
     if is_active is not None:
         kwargs["is_active"] = is_active
     if is_superuser is not None:
         kwargs["is_superuser"] = is_superuser
+    if user_id is not None:
+        kwargs["user_id"] = user_id
 
     return User(email=email, hashed_password=password, full_name=full_name, **kwargs)
+
+
+@deprecated(
+    """
+    ``_create_random_user`` has ben renamed to ``create_default_user``. Use this instead.
+    This wrapper will be removed in a future release.
+    """
+)
+def _create_random_user(
+    email: str | None = None,
+    password: str | None = None,
+    full_name: str | None = None,
+    is_active: bool | None = None,
+    is_superuser: bool | None = None,
+    user_id: UserId | None = None,
+    *,
+    hash_password: bool = False,
+) -> User:
+    """
+    WARNING: ``_create_random_user`` is deprecated. Use ``create_random_user`` instead.
+
+    Create a user with required field set to random values.
+
+    Fields that are not required are not set.
+
+    Provide parameters will overwrite random values.
+    By default, password will not be hashed to increase performance for tests.
+
+    :param email: Overwrite ``username``.
+    :param password: Overwrite ``password``.
+    :param full_name: Overwrite ``full_name``
+    :param is_active: Overwrite ``is_active``.
+    :param is_superuser: Overwrite ``is_superuser``.
+    :param user_id: User ID to set for the user. Usually this should not be necessary.
+    :param hash_password: Whether to hash the password or not. (default ``False``)
+    :return: Created user.
+    """
+
+    return create_default_user(
+        email,
+        password,
+        full_name,
+        is_active,
+        is_superuser,
+        user_id,
+        hash_password=hash_password,
+    )
 
 
 def create_random_user(
@@ -79,7 +133,7 @@ def create_random_user(
     :param commit: Whether to commit the transaction to the database. (default: ``True``)
     :return: Created user.
     """
-    user = _create_random_user(
+    user = create_default_user(
         email=email,
         password=password,
         full_name=full_name,
@@ -172,7 +226,7 @@ def get_current_user_override(
     """
 
     def fn() -> User:
-        return _create_random_user(
+        return create_default_user(
             email=email,
             password=password,
             full_name=full_name,

@@ -1,5 +1,5 @@
 from mountory_core.testing.user import (
-    _create_random_user,
+    create_default_user,
     create_random_user,
     create_user_context,
     get_current_user_override,
@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 
 def test__create_random_user_defaults() -> None:
-    user = _create_random_user()
+    user = create_default_user()
 
     assert isinstance(user, User)
 
@@ -32,7 +32,7 @@ def test__create_random_user_overrides() -> None:
     is_active: bool = not User.model_fields["is_active"].default
     is_superuser: bool = not User.model_fields["is_superuser"].default
 
-    user = _create_random_user(
+    user = create_default_user(
         email=email,
         password=password,
         is_active=is_active,
