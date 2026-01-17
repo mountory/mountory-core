@@ -1,10 +1,14 @@
+from typing_extensions import deprecated
 from collections.abc import Collection
+from typing import Literal, overload
 
+from pydantic import HttpUrl
 from sqlalchemy import func, insert
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, col, delete, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from mountory_core.activities.types import ActivityType
 from mountory_core.logging import logger
 from mountory_core.locations.models import (
     Location,
@@ -18,40 +22,124 @@ from mountory_core.users.types import UserId
 from mountory_core.util import create_filter_in_with_none
 
 
-def create_location(
-    *, db: Session, data: LocationCreate, commit: bool = True
+def _create_location(
+    db: Session,
+    *,
+    name: str,
+    abbreviation: str | Literal[""] | None = None,
+    website: HttpUrl | str | Literal[""] | None = None,
+    location_type: LocationType | None = None,
+    activity_types: Collection[ActivityType] | None = None,
+    parent_id: LocationId | None = None,
+    id_: LocationId | None = None,
+    commit: bool = True,
 ) -> Location:
-    """
-    Create a new location.
+    """Create location in the given database.
+
 
     :param db: Database session.
-    :param data: ``LocationCreate`` instance with data for the new location.
+    :param name: Name of the location.
+    :param abbreviation: Optional abbreviation of the location. (Default: ``None``)
+    :param website: Optional website of the location. (Default: ``None``)
+    :param location_type: Optional type of the location. (Default: ``None``)
+    :param activity_types: Optional activity types of the location. (Default: ``None``)
+    :param parent_id: Optional ID of the parent location. (Default: ``None``)
+    :param id_: Optional ID of the location. Use this to set the ID explicitly. (Default: ``None``)
     :param commit: Whether to commit the database transaction. (Default: ``True``)
 
-    :return: Created ``Location``.
+    :return: Created Location.
     """
-    logger.info(f"create_location, {data=}")
 
-    model_data = data.model_dump(exclude={"activity_types"})
-    logger.debug(f"create_location, create object, {model_data=}")
-    db_obj = Location.model_validate(model_data)
+    if abbreviation == "":
+        abbreviation = None
+    if website == "":
+        website = None
 
-    logger.debug(f"create_location, add to database,  db_obj={db_obj=}")
-    db.add(db_obj)
-
-    logger.debug(
-        f"create_location, set activity types, activity_types={data.activity_types}"
+    logger.debug("create_location, create object")
+    location = Location(
+        name=name,
+        abbreviation=abbreviation,
+        website=website,
+        parent_id=parent_id,
     )
-    db_obj.activity_type_associations = [
-        LocationActivityTypeAssociation(activity_type=activity_type)  # ty:ignore[missing-argument] setting ``location_id`` will be handled by sqlalchemy.
-        for activity_type in data.activity_types
-    ]
+    if id_:
+        location.id = id_
+    if location_type:
+        location.location_type = location_type
+
+    if activity_types:
+        logger.debug(
+            f"create_location, set activity types, activity_types={activity_types}"
+        )
+        location.activity_type_associations = [
+            LocationActivityTypeAssociation(activity_type=activity_type)  # ty:ignore[missing-argument] setting ``location_id`` will be handled by sqlalchemy.
+            for activity_type in activity_types
+        ]
+
+    logger.debug("create_location, add object to database")
+    db.add(location)
 
     if commit:
         logger.debug("create_location, commit transaction")
         db.commit()
-        db.refresh(db_obj)
-    return db_obj
+        db.refresh(location)
+    return location
+
+
+@overload
+@deprecated(
+    "Passing a data object is deprecated. Pass values as separate parameters instead."
+)
+def create_location(
+    *, db: Session, data: LocationCreate, commit: bool = True
+) -> Location: ...
+
+
+@overload
+def create_location(
+    db: Session,
+    *,
+    name: str,
+    abbreviation: str | None = None,
+    website: HttpUrl | str | Literal[""] | None = None,
+    location_type: LocationType | None = None,
+    activity_types: Collection[ActivityType] | None = None,
+    parent_id: LocationId | None = None,
+    id_: LocationId | None = None,
+    commit: bool = True,
+) -> Location: ...
+
+
+def create_location(
+    db: Session,
+    *,
+    data: LocationCreate | None = None,
+    name: str | None = None,
+    abbreviation: str | None = None,
+    website: HttpUrl | str | Literal[""] | None = None,
+    location_type: LocationType | None = None,
+    activity_types: Collection[ActivityType] | None = None,
+    parent_id: LocationId | None = None,
+    id_: LocationId | None = None,
+    commit: bool = True,
+) -> Location:
+    if data is not None:
+        return _create_location(db=db, **data.model_dump(), commit=commit)
+
+    if name is None:
+        raise ValueError("name must be provided")
+
+    return _create_location(
+        db=db,
+        name=name,
+        abbreviation=abbreviation,
+        website=website,
+        location_type=location_type,
+        activity_types=activity_types,
+        parent_id=parent_id,
+        id_=id_,
+        commit=commit,
+    )
 
 
 def read_location_by_id(*, db: Session, location_id: LocationId) -> Location | None:

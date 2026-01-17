@@ -19,6 +19,8 @@ from mountory_core.testing.equipment import (
 from mountory_core.testing.location import (
     CreateLocationProtocol,
     create_location_context,
+    create_location_favorite_context,
+    CreateLocationFavoriteProtocol,
 )
 from mountory_core.testing.transactions import (
     CreateTransactionProtocol,
@@ -193,6 +195,14 @@ def create_location(db: Session) -> Generator[CreateLocationProtocol, None, None
 def create_location_c(db: Session) -> Generator[CreateLocationProtocol, None, None]:
     """Return factory to create class scoped locations."""
     with create_location_context(db) as factory:
+        yield factory
+
+
+@pytest.fixture(scope="function")
+def create_location_favorite(
+    db: Session,
+) -> Generator[CreateLocationFavoriteProtocol, None, None]:
+    with create_location_favorite_context(db) as factory:
         yield factory
 
 

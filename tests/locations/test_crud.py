@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
 import uuid
+from typing import Literal
 
 import pytest
+from pydantic import HttpUrl
 
 from mountory_core.activities.types import ActivityType
 from mountory_core.locations import crud
@@ -17,6 +19,7 @@ from mountory_core.locations.types import LocationType
 from mountory_core.testing.location import (
     CreateLocationProtocol,
     create_random_location,
+    CreateLocationFavoriteProtocol,
 )
 from mountory_core.testing.user import CreateUserProtocol
 from mountory_core.testing.utils import (
@@ -55,6 +58,210 @@ def test_create_location_duplicate_name(
     location = crud.create_location(db=db, data=location_create)
     assert location.name == existing.name
     assert location.id is not None
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+def tets_create_location_data_set_name(db: Session) -> None:
+    data = LocationCreate(name=random_lower_string())
+
+    location = crud.create_location(db=db, data=data)
+    assert location.name == data.name
+    assert location.id is not None
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+def test_create_location_data_set_abbreviation(db: Session) -> None:
+    data = LocationCreate(
+        name=random_lower_string(), abbreviation=random_lower_string()
+    )
+
+    location = crud.create_location(db=db, data=data)
+    assert location.abbreviation == data.abbreviation
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+@pytest.mark.parametrize("value", ("", None))
+def test_create_location_data_set_abbreviation_parse_none(
+    db: Session, value: Literal[""] | None
+) -> None:
+    data = LocationCreate(name=random_lower_string(), abbreviation=value)
+    location = crud.create_location(db=db, data=data)
+    assert location.abbreviation is None
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+def test_create_location_data_set_website(db: Session) -> None:
+    data = LocationCreate(name=random_lower_string(), website=random_http_url())  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    location = crud.create_location(db=db, data=data)
+    assert location.website == data.website
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+@pytest.mark.parametrize("value", ("", None))
+def test_create_location_data_set_website_parse_none(
+    db: Session, value: Literal[""] | None
+) -> None:
+    data = LocationCreate(name=random_lower_string(), website=value)  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    location = crud.create_location(db=db, data=data)
+    assert location.website is None
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+def test_create_location_data_set_location_type(db: Session) -> None:
+    data = LocationCreate(name=random_lower_string(), location_type=LocationType.other)
+    location = crud.create_location(db=db, data=data)
+    assert location.location_type == data.location_type
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+@pytest.mark.parametrize("activity_types", ([], [ActivityType.CLIMBING_ALPINE]))
+def test_create_location_data_set_activity_types(
+    db: Session, activity_types: list[ActivityType]
+) -> None:
+    data = LocationCreate(name=random_lower_string(), activity_types=activity_types)
+    location = crud.create_location(db=db, data=data)
+    assert location.activity_types == data.activity_types
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+def test_create_location_defaults(
+    db: Session,
+) -> None:
+    name = random_lower_string()
+
+    location = crud.create_location(db=db, name=name)
+
+    assert location.id is not None
+    assert location.name == name
+    assert location.abbreviation is None
+    assert location.website is None
+    assert location.location_type == LocationType.other
+    assert location.activity_types == []
+    assert location.parent_id is None
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+def test_create_location_set_abbreviation(db: Session) -> None:
+    abbreviation = random_lower_string()
+
+    location = crud.create_location(
+        db=db, name=random_lower_string(), abbreviation=abbreviation
+    )
+    assert location.abbreviation == abbreviation
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+@pytest.mark.parametrize("value", ("", None))
+def test_create_location_set_abbreviation_parse_none(
+    db: Session, value: Literal[""]
+) -> None:
+    location = crud.create_location(
+        db=db, name=random_lower_string(), abbreviation=value
+    )
+
+    assert location.abbreviation is None
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+@pytest.mark.parametrize("value", (random_http_url(), HttpUrl(random_http_url())))
+def test_create_location_set_website(db: Session, value: HttpUrl | str) -> None:
+    location = crud.create_location(db=db, name=random_lower_string(), website=value)
+    assert str(location.website) == str(value)
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+@pytest.mark.parametrize("value", ("", None))
+def test_create_location_set_website_parse_none(
+    db: Session, value: Literal[""]
+) -> None:
+    location = crud.create_location(db=db, name=random_lower_string(), website=value)
+
+    assert location.abbreviation is None
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+def test_create_location_set_location_type(db: Session) -> None:
+    location_type = LocationType.area
+    location = crud.create_location(
+        db=db, name=random_lower_string(), location_type=location_type
+    )
+    assert location.location_type == location_type
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+def test_create_location_set_location_type_none(db: Session) -> None:
+    location = crud.create_location(
+        db=db, name=random_lower_string(), location_type=None
+    )
+    assert location.location_type == Location.model_fields["location_type"].default
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+def test_create_location_set_activity_types(db: Session) -> None:
+    activity_types = [ActivityType.CLIMBING_ALPINE]
+    location = crud.create_location(
+        db=db, name=random_lower_string(), activity_types=activity_types
+    )
+    assert location.activity_types == activity_types
+
+    # cleanup
+    db.delete(location)
+    db.commit()
+
+
+@pytest.mark.parametrize("value", (None, [], set()))
+def test_create_location_set_activity_types_parse_emtpy(
+    db: Session, value: list[ActivityType] | set[ActivityType] | None
+) -> None:
+    location = crud.create_location(
+        db=db, name=random_lower_string(), activity_types=value
+    )
+    assert location.activity_types == []
 
     # cleanup
     db.delete(location)
@@ -327,6 +534,81 @@ async def test_add_location_favorite(
 
     assert res.user_id == user.id
     assert res.location_id == location.id
+
+
+@pytest.mark.anyio
+async def test_read_location_favorite(
+    async_db: AsyncSession,
+    create_user: CreateUserProtocol,
+    create_location: CreateLocationProtocol,
+    create_location_favorite: CreateLocationFavoriteProtocol,
+) -> None:
+    user = create_user(commit=False)
+    location = create_location(commit=False)
+    existing = create_location_favorite(user=user, location=location)
+
+    favorite = await crud.read_location_favorite(
+        db=async_db, location_id=location.id, user_id=user.id
+    )
+
+    assert favorite == existing
+
+
+@pytest.mark.anyio
+async def test_read_location_favorite_not_existing(
+    async_db: AsyncSession,
+    create_user: CreateUserProtocol,
+    create_location: CreateLocationProtocol,
+) -> None:
+    user = create_user(commit=False)
+    location = create_location(commit=True)
+
+    favorite = await crud.read_location_favorite(
+        db=async_db, location_id=location.id, user_id=user.id
+    )
+
+    assert favorite is None
+
+
+@pytest.mark.anyio
+async def test_read_location_favorite_location_not_existing(
+    async_db: AsyncSession, create_user: CreateUserProtocol
+) -> None:
+    user = create_user()
+    location_id = uuid.uuid4()
+
+    favorite = await crud.read_location_favorite(
+        db=async_db, location_id=location_id, user_id=user.id
+    )
+
+    assert favorite is None
+
+
+@pytest.mark.anyio
+async def test_read_location_favorite_user_not_existing(
+    async_db: AsyncSession, create_location: CreateLocationProtocol
+) -> None:
+    location = create_location()
+    user_id = uuid.uuid4()
+    favorite = await crud.read_location_favorite(
+        db=async_db, location_id=location.id, user_id=user_id
+    )
+
+    assert favorite is None
+
+
+@pytest.mark.anyio
+async def test_read_location_favorite_location_and_user_not_existing(
+    async_db: AsyncSession,
+) -> None:
+    user_id = uuid.uuid4()
+    location_id = uuid.uuid4()
+
+    favorite = await crud.read_location_favorite(
+        db=async_db, location_id=location_id, user_id=user_id
+    )
+
+    assert favorite is None
 
 
 @pytest.mark.anyio
