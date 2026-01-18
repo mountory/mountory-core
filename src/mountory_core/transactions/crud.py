@@ -1,9 +1,19 @@
+from typing import overload
+from typing_extensions import deprecated
+
+from mountory_core.users.models import User
+from mountory_core.locations.models import Location
+from mountory_core.activities.models import Activity
+from datetime import datetime
+
+from pydantic import AwareDatetime
 from collections.abc import Collection
 
 from sqlalchemy import delete, func
 from sqlmodel import Session, col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from mountory_core.locations.types import LocationId
 from mountory_core.logging import logger
 from mountory_core.activities.types import ActivityId
 from mountory_core.transactions.models import (
@@ -11,17 +21,92 @@ from mountory_core.transactions.models import (
     TransactionCreate,
     TransactionUpdate,
 )
-from mountory_core.transactions.types import TransactionId
+from mountory_core.transactions.types import TransactionId, TransactionCategory
 from mountory_core.users.types import UserId
 
 
-def create_transaction(
-    *,
+def _create_transaction(
     db: Session,
+    *,
+    activity: ActivityId | Activity | None = None,
+    location: LocationId | Location | None = None,
+    user: UserId | User | None = None,
+    date: AwareDatetime | datetime | None = None,
+    amount: int | None = None,
+    category: TransactionCategory | None = None,
+    description: str | None = None,
+    note: str | None = None,
+    commit: bool = True,
+) -> Transaction:
+    """
+    Create a new transaction.
+
+    Will not check whether associated activity, location or user exist.
+    Will fail if they do not exit.
+
+    :param db: Database session.
+    :param activity: ``ActivityId`` or ``Activity`` instance to associate with the created transaction. (Default: ``None``)
+    :param location: ''LocationId`` or ``Location`` instance to associate with the created transaction. (Default: ``None``)
+    :param user: ``UserId`` or ``User`` instance to associate with the created transaction. (Default: ``None``)
+    :param date: Datetime of the created transaction. (Default: ``None``)
+    :param amount: Amount of the created transaction. (Default: ``None``)
+    :param category: Category of the created transaction. (Default: ``None``)
+    :param description: Description of the created transaction. (Default: ``None``)
+    :param note: Note for the created transaction. (Default: ``None``)
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: Created transaction instance.
+    """
+    logger.info("Create transaction")
+
+    transaction = Transaction(
+        amount=amount,
+        category=category,
+        date=date,
+        description=description,
+        note=note,
+    )
+
+    if isinstance(activity, Activity):
+        transaction.activity = activity
+    elif activity is not None:
+        transaction.activity_id = activity
+
+    if isinstance(location, Location):
+        transaction.location = location
+    elif location is not None:
+        transaction.location_id = location
+
+    if isinstance(user, User):
+        transaction.user = user
+    elif user is not None:
+        transaction.user_id = user
+
+    logger.debug(f"Create transaction, add object to database {transaction=}")
+    db.add(transaction)
+    if commit:
+        logger.debug("Create transaction, commit transaction")
+        db.commit()
+    return transaction
+
+
+@overload
+@deprecated(
+    """
+    Passing initial values is deprecated. Pass values as separate parameters instead.
+
+    NOTE: ``activity_id``, ``location_id``, and ``user_id`` have been renamed to ``activity``, ``location``, and ``user``.
+    """
+)
+def create_transaction(
+    db: Session,
+    *,
     data: TransactionCreate,
     commit: bool = True,
 ) -> Transaction:
     """
+    DEPRECATED: Passing initial values is deprecated. Pass values as separate parameters instead.
+
     Create a new transaction.
 
     Will not check whether the associated transaction exists or not.
@@ -33,19 +118,78 @@ def create_transaction(
 
     :return: Created transaction.
     """
-    logger.info(f"Create transaction, {data=}")
 
-    logger.debug(f"Create transaction, create object data={data}")
-    transaction = Transaction.model_validate(data)
 
-    logger.debug(f"Create transaction, add object to database {transaction=}")
-    db.add(transaction)
+@overload
+def create_transaction(
+    db: Session,
+    *,
+    activity: ActivityId | Activity | None = None,
+    location: LocationId | Location | None = None,
+    user: UserId | User | None = None,
+    date: AwareDatetime | datetime | None = None,
+    amount: int | None = None,
+    category: TransactionCategory | None = None,
+    description: str | None = None,
+    note: str | None = None,
+    commit: bool = True,
+) -> Transaction:
+    """
+    Create a new transaction.
 
-    if commit:
-        logger.debug("Create transaction, commit transaction")
-        db.commit()
-        db.refresh(transaction)
-    return transaction
+    Will not check whether associated activity, location or user exist.
+    Will fail if they do not exit.
+
+    :param db: Database session.
+    :param activity: ``ActivityId`` or ``Activity`` instance to associate with the created transaction. (Default: ``None``)
+    :param location: ''LocationId`` or ``Location`` instance to associate with the created transaction. (Default: ``None``)
+    :param user: ``UserId`` or ``User`` instance to associate with the created transaction. (Default: ``None``)
+    :param date: Datetime of the created transaction. (Default: ``None``)
+    :param amount: Amount of the created transaction. (Default: ``None``)
+    :param category: Category of the created transaction. (Default: ``None``)
+    :param description: Description of the created transaction. (Default: ``None``)
+    :param note: Note for the created transaction. (Default: ``None``)
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: Created transaction instance.
+    """
+
+
+def create_transaction(
+    db: Session,
+    *,
+    data: TransactionCreate | None = None,
+    activity: ActivityId | Activity | None = None,
+    location: LocationId | Location | None = None,
+    user: UserId | User | None = None,
+    date: AwareDatetime | datetime | None = None,
+    amount: int | None = None,
+    category: TransactionCategory | None = None,
+    description: str | None = None,
+    note: str | None = None,
+    commit: bool = True,
+) -> Transaction:
+    if data is not None:
+        activity = data.activity_id
+        location = data.location_id
+        user = data.user_id
+        date = data.date
+        amount = data.amount
+        category = data.category
+        description = data.description
+        note = data.note
+    return _create_transaction(
+        db=db,
+        activity=activity,
+        location=location,
+        user=user,
+        date=date,
+        amount=amount,
+        category=category,
+        description=description,
+        note=note,
+        commit=commit,
+    )
 
 
 def read_transaction_by_id(*, db: Session, _id: TransactionId) -> Transaction | None:

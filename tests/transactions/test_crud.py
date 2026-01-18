@@ -1,6 +1,6 @@
 from mountory_core.testing.user import CreateUserProtocol
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 import pytest
 
@@ -41,7 +41,7 @@ def test_create_transaction_without_values(db: Session) -> None:
     db.commit()
 
 
-def test_create_transaction_with_activity(
+def test_create_transaction_data_with_activity(
     db: Session,
     create_activity: CreateActivityProtocol,
 ) -> None:
@@ -61,7 +61,7 @@ def test_create_transaction_with_activity(
     db.commit()
 
 
-def test_create_transaction_with_location(
+def test_create_transaction_data_with_location(
     db: Session,
     create_location: CreateLocationProtocol,
 ) -> None:
@@ -81,7 +81,7 @@ def test_create_transaction_with_location(
     db.commit()
 
 
-def test_create_transaction_with_values(db: Session) -> None:
+def test_create_transaction_data_with_values(db: Session) -> None:
     create = TransactionCreate(
         amount=135326,
         category=TransactionCategory.OTHER,
@@ -104,6 +104,176 @@ def test_create_transaction_with_values(db: Session) -> None:
 
     stmt = select(Transaction).filter_by(id=transaction.id)
     assert db.exec(stmt).one() == transaction
+
+    # cleanup
+    db.delete(transaction)
+    db.commit()
+
+
+def test_create_transaction_defaults(db: Session) -> None:
+    transaction = crud.create_transaction(db=db)
+
+    assert isinstance(transaction, Transaction)
+
+    assert transaction.id is not None
+    assert transaction.activity_id is None
+    assert transaction.location_id is None
+    assert transaction.user_id is None
+    assert transaction.date is None
+    assert transaction.amount is None
+    assert transaction.category is None
+    assert transaction.description is None
+    assert transaction.note is None
+
+    assert transaction.activity is None
+    assert transaction.location is None
+    assert transaction.user is None
+
+    db_transaction = db.get(Transaction, transaction.id)
+    assert db_transaction == transaction
+
+    # cleanup
+    db.delete(transaction)
+    db.commit()
+
+
+def test_create_transaction_set_activity_id(
+    db: Session, create_activity: CreateActivityProtocol
+) -> None:
+    activity = create_activity()
+
+    transaction = crud.create_transaction(db=db, activity=activity.id)
+    assert transaction.activity_id == activity.id
+    assert transaction.activity == activity
+
+    # cleanup
+    db.delete(transaction)
+    db.commit()
+
+
+def test_create_transaction_set_activity(
+    db: Session, create_activity: CreateActivityProtocol
+) -> None:
+    activity = create_activity()
+
+    transaction = crud.create_transaction(db=db, activity=activity)
+    assert transaction.activity == activity
+    assert transaction.activity_id == activity.id
+
+    # cleanup
+    db.delete(transaction)
+    db.commit()
+
+
+def test_create_transaction_set_location_id(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    location = create_location()
+
+    transaction = crud.create_transaction(db=db, location=location.id)
+    assert transaction.location_id == location.id
+    assert transaction.location == location
+
+    # cleanup
+    db.delete(transaction)
+    db.commit()
+
+
+def test_create_transaction_set_location(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    location = create_location()
+
+    transaction = crud.create_transaction(db=db, location=location)
+    assert transaction.location == location
+    assert transaction.location_id == location.id
+
+    # cleanup
+    db.delete(transaction)
+    db.commit()
+
+
+def test_create_transaction_set_user_id(
+    db: Session, create_user: CreateUserProtocol
+) -> None:
+    user = create_user()
+
+    transaction = crud.create_transaction(db=db, user=user.id)
+    assert transaction.user_id == user.id
+    assert transaction.user_id == user.id
+
+    # cleanup
+    db.delete(transaction)
+    db.commit()
+
+
+def test_create_transaction_set_user(
+    db: Session, create_user: CreateUserProtocol
+) -> None:
+    user = create_user()
+
+    transaction = crud.create_transaction(db=db, user=user)
+    assert transaction.user == user
+    assert transaction.user_id == user.id
+
+    # cleanup
+    db.delete(transaction)
+    db.commit()
+
+
+def test_create_transaction_set_date_not_tz(db: Session) -> None:
+    date = datetime.now()
+    expected = date.replace(tzinfo=timezone.utc)
+
+    transaction = crud.create_transaction(db=db, date=date)
+    assert transaction.date == expected
+
+    # cleanup
+    db.delete(transaction)
+    db.commit()
+
+
+def test_create_transaction_set_date_with_tz(db: Session) -> None:
+    date = datetime.now(timezone(timedelta(hours=13)))
+
+    expected = date.astimezone(timezone.utc)
+
+    transaction = crud.create_transaction(db=db, date=date)
+    assert transaction.date == expected
+
+    # cleanup
+    db.delete(transaction)
+    db.commit()
+
+
+@pytest.mark.parametrize("category", TransactionCategory)
+def test_crate_transaction_set_category(
+    db: Session, category: TransactionCategory
+) -> None:
+    transaction = crud.create_transaction(db=db, category=category)
+    assert transaction.category == category
+
+    # cleanup
+    db.delete(transaction)
+    db.commit()
+
+
+def test_crate_transaction_set_description(db: Session) -> None:
+    description = random_lower_string()
+
+    transaction = crud.create_transaction(db=db, description=description)
+    assert transaction.description == description
+
+    # cleanup
+    db.delete(transaction)
+    db.commit()
+
+
+def test_create_transaction_set_note(db: Session) -> None:
+    note = random_lower_string()
+
+    transaction = crud.create_transaction(db=db, note=note)
+    assert transaction.note == note
 
     # cleanup
     db.delete(transaction)
