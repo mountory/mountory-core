@@ -1,3 +1,6 @@
+from pydantic import HttpUrl
+
+from mountory_core.testing.location import create_random_location
 from mountory_core.activities.types import ActivityType
 from mountory_core.locations.types import LocationType
 import uuid
@@ -175,7 +178,7 @@ def test_create_location_set_id__none() -> None:
     assert location.id is not None
 
 
-def test_update_location_commit_default() -> None:
+def test_update_location_data_commit_default() -> None:
     db = MagicMock(spec=Session)
 
     data = LocationUpdate(name=random_lower_string())
@@ -186,7 +189,18 @@ def test_update_location_commit_default() -> None:
     db.commit.assert_called_once()
 
 
-def test_update_location_no_commit() -> None:
+def test_update_location_data_commit_true() -> None:
+    db = MagicMock(spec=Session)
+
+    data = LocationUpdate(name=random_lower_string())
+    location = Location()
+
+    _ = crud.update_location(db=db, location=location, data=data, commit=True)
+
+    db.commit.assert_called_once()
+
+
+def test_update_location_data_commit_false() -> None:
     db = MagicMock(spec=Session)
 
     data = LocationUpdate(name=random_lower_string())
@@ -195,6 +209,348 @@ def test_update_location_no_commit() -> None:
     _ = crud.update_location(db=db, location=location, data=data, commit=False)
 
     db.commit.assert_not_called()
+
+
+def test_update_location_data_no_changes() -> None:
+    existing = create_random_location()
+    db = MagicMock(spec=Session)
+    db.exec.return_value.one_or_none.return_value = existing
+
+    data = LocationUpdate()
+    expected = existing.model_dump()
+
+    location = crud.update_location(db=db, location=existing, data=data)
+    assert location == existing
+    assert location.model_dump() == expected
+
+
+def test_update_location_data_set_name() -> None:
+    existing = create_random_location()
+    db = MagicMock(spec=Session)
+    db.exec.return_value.one_or_none.return_value = existing
+
+    data = LocationUpdate(name=random_lower_string())
+
+    location = crud.update_location(db=db, location=existing, data=data)
+
+    assert location.name == data.name
+
+
+def test_update_location_data_set_name_none() -> None:
+    existing = create_random_location()
+    db = MagicMock(spec=Session)
+    db.exec.return_value.one_or_none.return_value = existing
+
+    expected = existing.model_dump()
+    data = LocationUpdate(name=None)
+
+    location = crud.update_location(db=db, location=existing, data=data)
+
+    assert location.model_dump() == expected
+
+
+def test_update_location_data_set_abbreviation() -> None:
+    existing = create_random_location()
+    db = MagicMock(spec=Session)
+    db.exec.return_value.one_or_none.return_value = existing
+
+    data = LocationUpdate(abbreviation=random_lower_string())
+    location = crud.update_location(db=db, location=existing, data=data)
+
+    assert location.abbreviation == data.abbreviation
+
+
+@pytest.mark.parametrize("abbreviation", ("", None))
+def test_update_location_data_remove_abbreviation(
+    abbreviation: Literal[""] | None,
+) -> None:
+    existing = create_random_location(abbreviation=random_lower_string())
+    db = MagicMock(spec=Session)
+    db.exec.return_value.one_or_none.return_value = existing
+
+    data = LocationUpdate(abbreviation=abbreviation)
+    location = crud.update_location(db=db, location=existing, data=data)
+
+    assert location.abbreviation is None
+
+
+def test_update_location_data_set_website() -> None:
+    existing = create_random_location()
+    db = MagicMock(spec=Session)
+    db.exec.return_value.one_or_none.return_value = existing
+
+    data = LocationUpdate(website=random_http_url())  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    location = crud.update_location(db=db, location=existing, data=data)
+
+    assert location.website == data.website
+
+
+@pytest.mark.parametrize("website", ("", None))
+def test_update_location_data_remove_website(
+    website: Literal[""] | None,
+) -> None:
+    existing = create_random_location(website=random_http_url())
+    db = MagicMock(spec=Session)
+    db.exec.return_value.one_or_none.return_value = existing
+
+    data = LocationUpdate(website=website)  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    location = crud.update_location(db=db, location=existing, data=data)
+
+    assert location.website is None
+
+
+@pytest.mark.parametrize("location_type", LocationType)
+def test_update_location_data_set_location_type(location_type: LocationType) -> None:
+    existing = create_random_location()
+    db = MagicMock(spec=Session)
+    db.exec.return_value.one_or_none.return_value = existing
+
+    data = LocationUpdate(location_type=location_type)
+    location = crud.update_location(db=db, location=existing, data=data)
+
+    assert location.location_type == data.location_type
+
+
+def test_update_location_data_set_activity_types() -> None:
+    existing = create_random_location(website=random_http_url())
+    db = MagicMock(spec=Session)
+    db.exec.return_value.one_or_none.return_value = existing
+
+    data = LocationUpdate(activity_types=[ActivityType.WINTER_SNOWSHOEING])
+    location = crud.update_location(db=db, location=existing, data=data)
+
+    assert location.activity_types == data.activity_types
+
+
+def test_update_location_data_remove_activity_types() -> None:
+    existing = create_random_location(website=random_http_url())
+    db = MagicMock(spec=Session)
+    activity_types: list[ActivityType] = []
+    db.exec.return_value.one_or_none.return_value = existing
+
+    data = LocationUpdate(activity_types=activity_types)
+    location = crud.update_location(db=db, location=existing, data=data)
+
+    assert location.activity_types == []
+
+
+def test_update_location_data_set_parent_id() -> None:
+    existing = create_random_location(website=random_http_url())
+    db = MagicMock(spec=Session)
+    db.exec.return_value.one_or_none.return_value = existing
+
+    data = LocationUpdate(parent_id=uuid.uuid4())
+    location = crud.update_location(db=db, location=existing, data=data)
+
+    assert location.parent_id == data.parent_id
+
+
+def test_update_location_data_remove_parent_id() -> None:
+    existing = create_random_location(website=random_http_url())
+    db = MagicMock(spec=Session)
+    db.exec.return_value.one_or_none.return_value = existing
+
+    data = LocationUpdate(parent_id=None)
+    location = crud.update_location(db=db, location=existing, data=data)
+
+    assert location.parent_id is None
+
+
+def test_update_location_no_updates() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location()
+    expected = existing.model_dump()
+
+    location = crud.update_location(db=db, location=existing)
+
+    assert location == location
+    assert location.model_dump() == expected
+
+
+def test_update_location_set_name_empty_raises() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location()
+
+    with pytest.raises(ValueError):
+        _ = crud.update_location(db=db, location=existing, name="")
+
+
+def test_update_location_set_name() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location()
+    name = random_lower_string()
+
+    location = crud.update_location(db=db, location=existing, name=name)
+    assert location == existing
+    assert location.name == name
+
+
+def test_update_location_set_name_none() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location()
+    expected = existing.model_dump()
+
+    location = crud.update_location(db=db, location=existing, name=None)
+    assert location == existing
+    assert location.model_dump() == expected
+
+
+def test_update_location_set_abbreviation() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location()
+    abbreviation = random_lower_string()
+
+    location = crud.update_location(db=db, location=existing, abbreviation=abbreviation)
+    assert location == existing
+    assert location.abbreviation == abbreviation
+
+
+def test_update_location_set_abbreviation_none() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location(abbreviation=random_lower_string())
+    expected = existing.model_dump()
+    abbreviation = None
+
+    location = crud.update_location(db=db, location=existing, abbreviation=abbreviation)
+    assert location == existing
+    assert location.model_dump() == expected
+
+
+def test_update_location_remove_abbreviation() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location(abbreviation=random_lower_string())
+    abbreviation = ""
+
+    location = crud.update_location(db=db, location=existing, abbreviation=abbreviation)
+    assert location == existing
+    assert location.abbreviation is None
+
+
+@pytest.mark.parametrize("website", (HttpUrl(random_http_url()), random_http_url()))
+def test_update_location_set_website(website: HttpUrl | str) -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location()
+    website = random_http_url()
+
+    location = crud.update_location(db=db, location=existing, website=website)
+    assert location == existing
+    assert location.website == website
+
+
+def test_update_location_set_website_none() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location(website=random_http_url())
+    expected = existing.model_dump()
+    website = None
+
+    location = crud.update_location(db=db, location=existing, website=website)
+    assert location == existing
+    assert location.model_dump() == expected
+
+
+def test_update_location_remove_website() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location(website=random_http_url())
+    website = ""
+
+    location = crud.update_location(db=db, location=existing, website=website)
+    assert location == existing
+    assert location.website is None
+
+
+@pytest.mark.parametrize("location_type", LocationType)
+def test_update_location_set_location_type(location_type: LocationType) -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location()
+
+    location = crud.update_location(
+        db=db, location=existing, location_type=location_type
+    )
+    assert location == existing
+    assert location.location_type == location_type
+
+
+def test_update_location_set_location_type_none() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location()
+    expected = existing.model_dump()
+    location_type = None
+
+    location = crud.update_location(
+        db=db, location=existing, location_type=location_type
+    )
+    assert location == existing
+    assert location.model_dump() == expected
+
+
+def test_update_location_set_activity_types() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location()
+    activity_types = [ActivityType.WINTER_SNOWSHOEING]
+
+    location = crud.update_location(
+        db=db, location=existing, activity_types=activity_types
+    )
+    assert location == existing
+    assert location.activity_types == activity_types
+
+
+def test_update_location_set_activity_types_none() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location()
+    existing.activity_types = [ActivityType.RUNNING_JOGGING]
+    expected = existing.model_dump()
+    activity_types = None
+
+    location = crud.update_location(
+        db=db, location=existing, activity_types=activity_types
+    )
+    assert location == existing
+    assert location.model_dump() == expected
+
+
+@pytest.mark.parametrize("activity_types", (set(), []))
+def test_update_location_remove_activity_types(
+    activity_types: list[ActivityType] | set[ActivityType],
+) -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location()
+
+    location = crud.update_location(
+        db=db, location=existing, activity_types=activity_types
+    )
+    assert location == existing
+    assert location.activity_types == []
+
+
+def test_update_location_set_parent_id() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location()
+    parent_id = uuid.uuid4()
+
+    location = crud.update_location(db=db, location=existing, parent_id=parent_id)
+    assert location == existing
+    assert location.parent_id == parent_id
+
+
+def test_update_location_set_parent_id_none() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location(parent=uuid.uuid4())
+    expected = existing.model_dump()
+    parent_id = None
+
+    location = crud.update_location(db=db, location=existing, parent_id=parent_id)
+    assert location == existing
+    assert location.model_dump() == expected
+
+
+def test_update_location_remove_parent_id() -> None:
+    db = MagicMock(spec=Session)
+    existing = create_random_location(parent=uuid.uuid4())
+
+    location = crud.update_location(db=db, location=existing, parent_id="")
+    assert location == existing
+    assert location.parent_id is None
 
 
 def test_update_location_by_id_commit_default() -> None:
@@ -208,7 +564,18 @@ def test_update_location_by_id_commit_default() -> None:
     db.commit.assert_called_once()
 
 
-def test_update_location_by_id_no_commit() -> None:
+def test_update_location_by_id_commit_true() -> None:
+    db = MagicMock(spec=Session)
+
+    data = LocationUpdate(name=random_lower_string())
+    location_id = uuid.uuid4()
+
+    crud.update_location_by_id(db=db, location_id=location_id, data=data, commit=True)
+
+    db.commit.assert_called_once()
+
+
+def test_update_location_by_id_commit_false() -> None:
     db = MagicMock(spec=Session)
 
     data = LocationUpdate(name=random_lower_string())

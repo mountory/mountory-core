@@ -781,7 +781,6 @@ async def test_update_manufacturer_data_update_name(
 
 
 @pytest.mark.anyio
-@pytest.mark.skip(reason="not handled at the time")
 async def test_update_manufacturer_data_update_name_none(
     async_db: AsyncSession, create_manufacturer: CreateManufacturerProtocol
 ) -> None:

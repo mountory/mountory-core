@@ -13,7 +13,7 @@ from mountory_core.users.types import UserId
 
 
 def create_random_location(
-    db: Session,
+    db: Session | None = None,
     name: str | None = None,
     abbreviation: str | None = None,
     website: str | None = None,
@@ -54,10 +54,12 @@ def create_random_location(
         location.parent = parent
     elif parent is not None:
         location.parent_id = parent
-    db.add(location)
-    if commit:
-        db.commit()
-        db.refresh(location)
+
+    if db:
+        db.add(location)
+        if commit:
+            db.commit()
+            db.refresh(location)
     return location
 
 
