@@ -201,46 +201,135 @@ def read_locations(
     return data, count
 
 
-def update_location(
-    *, db: Session, location: Location, data: LocationUpdate, commit: bool = True
+def _update_location(
+    db: Session,
+    location: Location,
+    name: str | None = None,
+    abbreviation: str | None = None,
+    website: HttpUrl | str | None = None,
+    location_type: LocationType | None = None,
+    activity_types: Collection[ActivityType] | None = None,
+    parent_id: LocationId | Literal[""] | None = None,
+    commit: bool = True,
 ) -> Location:
-    """
-    Updated the given location
+    """Update the given location.
 
-    If the location is present in the database, it will be updated there as well.
-
-    NOTE: empty fields of the provided data will be ignored.
+    To ignore (not update) a value pass ``None`` or don't pass it.'
 
     :param db: Database session.
-    :param location: ``Location`` to update.
-    :param data: ``LocationUpdate`` instance with update data.
+    :param location: ``Location`` instance to update.
+    :param name: Set name of the location.
+        If provided must not be empty! (Default: ``None``)
+    :param abbreviation: Abbreviation for the location.
+        To remove an existing abbreviation, pass an empty string. (Default: ``None``)
+    :param website: Set url of the website of the location.
+        To remove an existing website pass an empty string. (Default: ``None``)
+    :param location_type: Set ``LocationType`` of the location. (Default: ``None``)
+    :param activity_types: Set activity types associated with the location.
+        To remove existing associations pass an empty collection. (Default: ``None``)
+    :param parent_id: Set ID of the parent location.
+        To remove an existing ID pass an empty string. (Default: ``None``)
     :param commit: Whether to commit the database transaction. (Default: ``True``)
 
     :return: Updated ``Location`` instance.
     """
-    logger.info(f"update_location, {location=}, {data=}")
-    stmt = select(Location).filter_by(id=location.id)
-    loc = db.exec(stmt).one_or_none()
-    if not loc:
-        if commit is not None:
-            logger.warning(
-                f"update_location, location does not exist in database, but ``commit is not None``. This might not be intended. "
-                f"If you do not expect the location to be present, consider not setting ``commit`` or set it to ``None``, ({location=})"
-            )
-        else:
-            logger.info(
-                f"update_location, location does not exist in database, {location=}"
-            )
-        return location.sqlmodel_update(data.model_dump(exclude_unset=True))
+    logger.info(f"update_location {location.id}")
 
-    model_data = data.model_dump(exclude_unset=True)
-    logger.debug(f"update_location, update location, data={model_data}")
-    loc.sqlmodel_update(model_data)
+    data: dict[str, HttpUrl | str | LocationId | None] = {}
+    if name is not None:
+        if name == "":
+            raise ValueError("name cannot be empty")
+        data["name"] = name
+
+    if abbreviation is not None:
+        data["abbreviation"] = None if abbreviation == "" else abbreviation
+    if website is not None:
+        data["website"] = None if website == "" else website
+    if location_type:
+        data["location_type"] = None if location_type == "" else location_type
+    if parent_id is not None:
+        data["parent_id"] = None if parent_id == "" else parent_id
+
+    logger.debug(f"update_location {location.id}, update location {data=}")
+    location.sqlmodel_update(data)
+
+    if activity_types is not None:
+        location.activity_types = list(activity_types)
+
+    stmt = select(Location).filter_by(id=location.id)
+    if db.exec(stmt).one_or_none() is None:
+        return location
+
     if commit:
         logger.debug("update_location, commit transaction")
         db.commit()
         db.refresh(location)
-    return loc
+
+    return location
+
+
+@overload
+@deprecated(
+    "Passing updates as single data object is deprecated. Pass values as separate parameters instead."
+)
+def update_location(
+    db: Session,
+    *,
+    location: Location,
+    data: LocationUpdate,
+    commit: bool = True,
+) -> Location: ...
+
+
+@overload
+def update_location(
+    db: Session,
+    *,
+    location: Location,
+    name: str | None = None,
+    abbreviation: str | Literal[""] | None = None,
+    website: HttpUrl | Literal[""] | str | None = None,
+    location_type: LocationType | None = None,
+    activity_types: Collection[ActivityType] | None = None,
+    parent_id: LocationId | Literal[""] | None = None,
+    commit: bool = True,
+) -> Location: ...
+
+
+def update_location(
+    db: Session,
+    *,
+    location: Location,
+    data: LocationUpdate | None = None,
+    name: str | None = None,
+    abbreviation: str | None = None,
+    website: HttpUrl | str | None = None,
+    location_type: LocationType | None = None,
+    activity_types: Collection[ActivityType] | None = None,
+    parent_id: LocationId | Literal[""] | None = None,
+    commit: bool = True,
+) -> Location:
+    if data is not None:
+        name = data.name
+        if "abbreviation" in data.model_fields_set:
+            abbreviation = "" if data.abbreviation is None else data.abbreviation
+        if "website" in data.model_fields_set:
+            website = "" if data.website is None else data.website
+        if "parent_id" in data.model_fields_set:
+            parent_id = "" if data.parent_id is None else data.parent_id
+        location_type = data.location_type
+        activity_types = data.activity_types
+    return _update_location(
+        db=db,
+        location=location,
+        name=name,
+        abbreviation=abbreviation,
+        website=website,
+        location_type=location_type,
+        activity_types=activity_types,
+        parent_id=parent_id,
+        commit=commit,
+    )
 
 
 def update_location_by_id(
