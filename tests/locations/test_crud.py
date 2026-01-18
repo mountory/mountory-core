@@ -891,6 +891,220 @@ def test_update_location_by_id_not_existing(db: Session) -> None:
     assert db.exec(stmt).one_or_none() is None
 
 
+def test_update_location_by_id_data_update_no_changes(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location()
+    data = LocationUpdate()
+    expected = existing.model_dump()
+
+    crud.update_location_by_id(db=db, location_id=existing.id, data=data)
+
+    db.refresh(existing)
+    assert existing.model_dump() == expected
+
+
+def test_update_location_by_id_data_set_name(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location()
+    data = LocationUpdate(name=random_lower_string())
+
+    crud.update_location_by_id(db=db, location_id=existing.id, data=data)
+    db.refresh(existing)
+    assert existing.name == data.name
+
+
+def test_update_location_by_id_data_set_name_none(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location()
+    expected = existing.model_dump()
+    data = LocationUpdate(name=None)
+
+    crud.update_location_by_id(db=db, location_id=existing.id, data=data)
+    db.refresh(existing)
+    assert existing.model_dump() == expected
+
+
+def test_update_location_by_id_data_set_abbreviation(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location()
+    data = LocationUpdate(abbreviation=random_lower_string())
+
+    crud.update_location_by_id(db=db, location_id=existing.id, data=data)
+    db.refresh(existing)
+    assert existing.abbreviation == data.abbreviation
+
+
+@pytest.mark.parametrize("abbreviation", ("", None))
+def test_update_location_by_id_data_remove_abbreviation(
+    db: Session,
+    create_location: CreateLocationProtocol,
+    abbreviation: Literal[""] | None,
+) -> None:
+    existing = create_location(abbreviation=random_lower_string())
+    data = LocationUpdate(abbreviation=abbreviation)
+
+    crud.update_location_by_id(db=db, location_id=existing.id, data=data)
+    db.refresh(existing)
+    assert existing.abbreviation is None
+
+
+def test_update_location_by_id_data_set_website(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location()
+    data = LocationUpdate(website=random_http_url())  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+
+    crud.update_location_by_id(db=db, location_id=existing.id, data=data)
+    assert existing.website == data.website
+
+
+@pytest.mark.parametrize("website", ("", None))
+def test_update_location_by_id_data_remove_website(
+    db: Session,
+    create_location: CreateLocationProtocol,
+    website: Literal[""] | None,
+) -> None:
+    existing = create_location(website=random_http_url())
+    data = LocationUpdate(website=website)  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+
+    crud.update_location_by_id(db=db, location_id=existing.id, data=data)
+    assert existing.website is None
+
+
+@pytest.mark.parametrize("location_type", LocationType)
+def test_update_location_by_id_data_set_location_type(
+    db: Session, create_location: CreateLocationProtocol, location_type: LocationType
+) -> None:
+    existing = create_location()
+    data = LocationUpdate(location_type=location_type)
+
+    crud.update_location_by_id(db=db, location_id=existing.id, data=data)
+    assert existing.location_type == data.location_type
+
+
+def test_update_location_by_id_data_set_activity_types(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location()
+    data = LocationUpdate(activity_types=[ActivityType.WINTER_SNOWSHOEING])
+
+    crud.update_location_by_id(db=db, location_id=existing.id, data=data)
+    assert existing.activity_types == data.activity_types
+
+
+def test_update_location_by_id_data_remove_activity_types(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location(commit=False)
+    existing.activity_types = [ActivityType.WINTER_SNOWSHOEING]
+    db.commit()
+    activity_types: list[ActivityType] = []
+    data = LocationUpdate(activity_types=activity_types)
+
+    crud.update_location_by_id(db=db, location_id=existing.id, data=data)
+    assert existing.activity_types == []
+
+
+def test_update_location_by_id_data_set_parent_id(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    parent = create_location(commit=False)
+    existing = create_location(website=random_http_url())
+    data = LocationUpdate(parent_id=parent.id)
+
+    crud.update_location_by_id(db=db, location_id=existing.id, data=data)
+    assert existing.parent_id == data.parent_id
+
+
+def test_update_location_by_id_data_remove_parent_id(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    parent = create_location(commit=False)
+    existing = create_location(website=random_http_url(), parent=parent)
+    data = LocationUpdate(parent_id=None)
+
+    crud.update_location_by_id(db=db, location_id=existing.id, data=data)
+    assert existing.parent_id is None
+
+
+def test_update_location_by_id_no_changes(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location()
+    expected = existing.model_dump()
+
+    crud.update_location_by_id(db=db, location_id=existing.id)
+    db.refresh(existing)
+    assert existing.model_dump() == expected
+
+
+def test_update_location_by_id_set_name(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location()
+    name = random_lower_string()
+
+    crud.update_location_by_id(db=db, location_id=existing.id, name=name)
+    db.refresh(existing)
+    assert existing.name == name
+
+
+def test_update_location_by_id_set_name_none(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location()
+    expected = existing.model_dump()
+    name = None
+
+    crud.update_location_by_id(db=db, location_id=existing.id, name=name)
+    db.refresh(existing)
+    assert existing.model_dump() == expected
+
+
+def test_update_location_by_id_set_abbreviation(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location()
+    abbreviation = random_lower_string()
+
+    crud.update_location_by_id(
+        db=db, location_id=existing.id, abbreviation=abbreviation
+    )
+    db.refresh(existing)
+    assert existing.abbreviation == abbreviation
+
+
+def test_update_location_by_id_set_website_none(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location()
+    abbreviation = None
+    expected = existing.model_dump()
+
+    crud.update_location_by_id(
+        db=db, location_id=existing.id, abbreviation=abbreviation
+    )
+    db.refresh(existing)
+    assert existing.model_dump() == expected
+
+
+def test_update_location_by_id_remove_website(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    existing = create_location()
+    abbreviation = ""
+
+    crud.update_location_by_id(
+        db=db, location_id=existing.id, abbreviation=abbreviation
+    )
+    db.refresh(existing)
+    assert existing.abbreviation is None
+
+
 @pytest.mark.anyio
 async def test_delete_location(
     async_db: AsyncSession, create_location: CreateLocationProtocol

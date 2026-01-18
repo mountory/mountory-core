@@ -332,14 +332,98 @@ def update_location(
     )
 
 
-def update_location_by_id(
-    *,
+def _update_location_by_id(
     db: Session,
+    *,
+    location_id: LocationId,
+    name: str | None = None,
+    abbreviation: str | Literal[""] | None = None,
+    website: HttpUrl | str | Literal[""] | None = None,
+    location_type: LocationType | None = None,
+    activity_types: Collection[ActivityType] | None = None,
+    parent_id: LocationId | Literal[""] | None = None,
+    commit: bool = True,
+) -> None:
+    """Update a location by ID.
+
+    Values that are not provided or passed as ``None`` are not updated.
+
+    :param db: Database session.
+    :param location_id: ID of the location to update.
+    :param name: Set name of the location. (Default: ``None``)
+    :param abbreviation: Set abbreviation of the location.
+        To remove pass an empty string. (Default: ``None``)
+    :param website: Set website of the location.
+        To remove pass an empty string. (Default: ``None``)
+    :param location_type: Set location type of the location. (Default: ``None``)
+    :param activity_types: Set activity types of the location.
+        To remove pass an empty collection. (Default: ``None``)
+    :param parent_id: Set parent id of the location.
+        To remove pass an empty string. (Default: ``None``)
+    :param commit: Whether to commit the database transaction. (Default: ``True``)
+
+    :return: ``None``
+    """
+    logger.info(f"update_location_by_id {location_id}")
+
+    if name is not None and name == "":
+        raise ValueError("name cannot be empty")
+    data: dict[str, str | HttpUrl | LocationType | LocationId | None] = {}
+
+    if name is not None:
+        data["name"] = name
+    if abbreviation is not None:
+        data["abbreviation"] = None if abbreviation == "" else abbreviation
+    if website is not None:
+        data["website"] = None if website == "" else website
+    if parent_id is not None:
+        data["parent_id"] = None if parent_id == "" else parent_id
+    if location_type is not None:
+        data["location_type"] = location_type
+
+    if data:
+        logger.debug(f"update_location_by_id, update location in database, {data=}")
+        stmt = update(Location).filter_by(id=location_id).values(**data)
+        db.exec(stmt)
+
+    # update activity types
+    if activity_types is not None:
+        logger.debug("update_location_by_id, set type associations")
+        stmt_del = delete(LocationActivityTypeAssociation).filter_by(
+            location_id=location_id
+        )
+        db.exec(stmt_del)
+        if activity_types:
+            db.add_all(
+                LocationActivityTypeAssociation(
+                    location_id=location_id, activity_type=activity_type
+                )
+                for activity_type in activity_types
+            )
+
+    if commit:
+        logger.debug("update_location_by_id, commit transaction")
+        db.commit()
+
+
+@overload
+@deprecated(
+    """
+    Passing update values as single data object is deprecated.
+    Pass values as separate parameters instead.
+    """
+)
+def update_location_by_id(
+    db: Session,
+    *,
     location_id: LocationId,
     data: LocationUpdate,
     commit: bool = True,
 ) -> None:
     """
+    DEPRECATED: Passing update values as single data object is deprecated.
+    Pass values as separate parameters instead.
+
     Update a location by ``LocationId``.
 
     NOTE: Emtpy fields fo the provided data will be ignored.
@@ -351,33 +435,58 @@ def update_location_by_id(
 
     :return: ``None``
     """
-    logger.info(f"update_location_by_id, {location_id=}, {data=}")
 
-    model_data = data.model_dump(exclude_unset=True, exclude={"activity_types"})
 
-    logger.debug(
-        f"update_location_by_id, update location in database, data={model_data}"
+@overload
+def update_location_by_id(
+    db: Session,
+    *,
+    location_id: LocationId,
+    name: str | None = None,
+    abbreviation: str | Literal[""] | None = None,
+    website: HttpUrl | str | Literal[""] | None = None,
+    location_type: LocationType | None = None,
+    activity_types: Collection[ActivityType] | None = None,
+    parent_id: LocationId | Literal[""] | None = None,
+    commit: bool = True,
+) -> None: ...
+
+
+def update_location_by_id(
+    db: Session,
+    *,
+    location_id: LocationId,
+    data: LocationUpdate | None = None,
+    name: str | None = None,
+    abbreviation: str | Literal[""] | None = None,
+    website: HttpUrl | str | Literal[""] | None = None,
+    location_type: LocationType | None = None,
+    activity_types: Collection[ActivityType] | None = None,
+    parent_id: LocationId | Literal[""] | None = None,
+    commit: bool = True,
+) -> None:
+    if data is not None:
+        if "name" in data.model_fields_set:
+            name = data.name
+        if "abbreviation" in data.model_fields_set:
+            abbreviation = "" if data.abbreviation is None else data.abbreviation
+        if "website" in data.model_fields_set:
+            website = "" if data.website is None else data.website
+        if "parent_id" in data.model_fields_set:
+            parent_id = "" if data.parent_id is None else data.parent_id
+        location_type = data.location_type
+        activity_types = data.activity_types
+    return _update_location_by_id(
+        db=db,
+        location_id=location_id,
+        name=name,
+        abbreviation=abbreviation,
+        website=website,
+        location_type=location_type,
+        activity_types=activity_types,
+        parent_id=parent_id,
+        commit=commit,
     )
-    stmt = update(Location).filter_by(id=location_id).values(**model_data)
-    db.exec(stmt)
-
-    # update location activity_types
-    logger.debug("update_location_by_id, remove old type associations")
-    stmt_del = delete(LocationActivityTypeAssociation).filter_by(
-        location_id=location_id
-    )
-    db.exec(stmt_del)
-
-    logger.debug("update_location_by_id, set type associations")
-    db.add_all(
-        LocationActivityTypeAssociation(
-            location_id=location_id, activity_type=activity_type
-        )
-        for activity_type in data.activity_types
-    )
-    if commit:
-        logger.debug("update_location_by_id, commit transaction")
-        db.commit()
 
 
 async def delete_location_by_id(
