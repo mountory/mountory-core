@@ -54,7 +54,19 @@ class LocationSeasonality(BaseModel):
     user: Seasonality | None = None
 
 
-LocationNameField = Annotated[str, StringConstraints(min_length=3, max_length=255)]
+LOCATION_NAME_MIN_LENGTH = 3
+LOCATION_NAME_MAX_LENGTH = 255
+
+LOCATION_ABBREVIATION_MIN_LENGTH = 2
+LOCATION_ABBREVIATION_MAX_LENGTH = 255
+
+
+LocationNameField = Annotated[
+    str,
+    StringConstraints(
+        min_length=LOCATION_NAME_MIN_LENGTH, max_length=LOCATION_NAME_MAX_LENGTH
+    ),
+]
 """Name field for a location."""
 
 OptionalLocationNameField = Annotated[
@@ -65,13 +77,14 @@ OptionalLocationNameField = Annotated[
 Parses empty string as ``None``. Otherwise same as ``LocationNameField``.
 """
 
-
 LocationAbbreviationField = Annotated[
     OptionalStr,
     Field(default=None),
     DefaultIfNoneValidator,
     NoneIfEmptyStrValidator,
-    StringConstraints(min_length=2, max_length=255),
+    StringConstraints(
+        min_length=LOCATION_NAME_MIN_LENGTH, max_length=LOCATION_NAME_MAX_LENGTH
+    ),
 ]
 
 LocationTypeField = Annotated[LocationType, Field(default=LocationType.other)]

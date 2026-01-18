@@ -553,7 +553,7 @@ def test_update_location_remove_parent_id() -> None:
     assert location.parent_id is None
 
 
-def test_update_location_by_id_commit_default() -> None:
+def test_update_location_by_id_data_commit_default() -> None:
     db = MagicMock(spec=Session)
 
     data = LocationUpdate(name=random_lower_string())
@@ -564,7 +564,7 @@ def test_update_location_by_id_commit_default() -> None:
     db.commit.assert_called_once()
 
 
-def test_update_location_by_id_commit_true() -> None:
+def test_update_location_by_id_data_commit_true() -> None:
     db = MagicMock(spec=Session)
 
     data = LocationUpdate(name=random_lower_string())
@@ -575,7 +575,7 @@ def test_update_location_by_id_commit_true() -> None:
     db.commit.assert_called_once()
 
 
-def test_update_location_by_id_commit_false() -> None:
+def test_update_location_by_id_data_commit_false() -> None:
     db = MagicMock(spec=Session)
 
     data = LocationUpdate(name=random_lower_string())
@@ -584,6 +584,40 @@ def test_update_location_by_id_commit_false() -> None:
     crud.update_location_by_id(db=db, location_id=location_id, data=data, commit=False)
 
     db.commit.assert_not_called()
+
+
+def test_update_location_by_id_commit_default() -> None:
+    db = MagicMock(spec=Session)
+    location_id = uuid.uuid4()
+
+    crud.update_location_by_id(db=db, location_id=location_id)
+
+    db.commit.assert_called_once()
+
+
+def test_update_location_by_id_commit_true() -> None:
+    db = MagicMock(spec=Session)
+    location_id = uuid.uuid4()
+
+    crud.update_location_by_id(db=db, location_id=location_id, commit=True)
+
+    db.commit.assert_called_once()
+
+
+def test_update_location_by_id_commit_false() -> None:
+    db = MagicMock(spec=Session)
+    location_id = uuid.uuid4()
+
+    crud.update_location_by_id(db=db, location_id=location_id, commit=False)
+
+    db.commit.assert_not_called()
+
+
+def test_update_location_by_id_set_name_empty_str() -> None:
+    db = MagicMock(spec=Session)
+
+    with pytest.raises(ValueError):
+        crud.update_location_by_id(db=db, location_id=uuid.uuid4(), name="")
 
 
 @pytest.mark.anyio
