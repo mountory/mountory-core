@@ -1,3 +1,5 @@
+from typing import Literal
+
 from mountory_core.testing.user import CreateUserProtocol
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -425,6 +427,307 @@ def test_read_transactions_filter_activity_ids_empty(
     )
     assert db_count == len(existing)
     check_lists(transactions, existing)
+
+
+def test_update_transaction_no_updates(
+    db: Session, create_transaction: CreateTransactionProtocol
+) -> None:
+    existing = create_transaction(
+        date=datetime.now(),
+        amount=100,
+        category=TransactionCategory.OTHER,
+        description=random_lower_string(),
+        notes=random_lower_string(),
+    )
+    expected = existing.model_dump()
+
+    transaction = crud.update_transaction(db=db, transaction=existing)
+    assert transaction == existing
+    assert transaction.model_dump() == expected
+
+
+def test_update_transaction_set_all_none(
+    db: Session, create_transaction: CreateTransactionProtocol
+) -> None:
+    existing = create_transaction(
+        date=datetime.now(),
+        amount=100,
+        category=TransactionCategory.OTHER,
+        description=random_lower_string(),
+        notes=random_lower_string(),
+    )
+    expected = existing.model_dump()
+
+    transaction = crud.update_transaction(
+        db=db,
+        transaction=existing,
+        activity=None,
+        location=None,
+        user=None,
+        date=None,
+        amount=None,
+        category=None,
+        description=None,
+        note=None,
+    )
+    assert transaction == existing
+    assert transaction.model_dump() == expected
+
+
+def test_update_transaction_set_activity_id(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+    create_transaction: CreateTransactionProtocol,
+) -> None:
+    activity_old = create_activity(commit=False)
+    existing = create_transaction(activity=activity_old, commit=False)
+    activity = create_activity(commit=True)
+
+    transaction = crud.update_transaction(
+        db=db, transaction=existing, activity=activity.id
+    )
+    assert transaction == existing
+    assert transaction.activity_id == activity.id
+    assert transaction.activity == activity
+
+
+def test_update_transaction_set_activity(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+    create_transaction: CreateTransactionProtocol,
+) -> None:
+    activity_old = create_activity(commit=False)
+    existing = create_transaction(activity=activity_old, commit=False)
+    activity = create_activity(commit=True)
+
+    transaction = crud.update_transaction(
+        db=db, transaction=existing, activity=activity
+    )
+    assert transaction == existing
+    assert transaction.activity == activity
+    assert transaction.activity_id == activity.id
+
+
+def test_update_transaction_remove_activity(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+    create_transaction: CreateTransactionProtocol,
+) -> None:
+    activity_old = create_activity(commit=False)
+    existing = create_transaction(activity=activity_old, commit=True)
+
+    transaction = crud.update_transaction(db=db, transaction=existing, activity="")
+    assert transaction == existing
+    assert transaction.activity is None
+    assert transaction.activity_id is None
+
+
+def test_update_transaction_set_location_id(
+    db: Session,
+    create_location: CreateLocationProtocol,
+    create_transaction: CreateTransactionProtocol,
+) -> None:
+    location_old = create_location(commit=False)
+    existing = create_transaction(location=location_old, commit=False)
+    location = create_location(commit=True)
+
+    transaction = crud.update_transaction(
+        db=db, transaction=existing, location=location.id
+    )
+    assert transaction == existing
+    assert transaction.location_id == location.id
+    assert transaction.location == location
+
+
+def test_update_transaction_set_location(
+    db: Session,
+    create_location: CreateLocationProtocol,
+    create_transaction: CreateTransactionProtocol,
+) -> None:
+    location_old = create_location(commit=False)
+    existing = create_transaction(location=location_old, commit=False)
+    location = create_location(commit=True)
+
+    transaction = crud.update_transaction(
+        db=db, transaction=existing, location=location
+    )
+    assert transaction == existing
+    assert transaction.location == location
+    assert transaction.location_id == location.id
+
+
+def test_update_transaction_remove_location(
+    db: Session,
+    create_location: CreateLocationProtocol,
+    create_transaction: CreateTransactionProtocol,
+) -> None:
+    location_old = create_location(commit=False)
+    existing = create_transaction(location=location_old, commit=True)
+
+    transaction = crud.update_transaction(db=db, transaction=existing, location="")
+    assert transaction == existing
+    assert transaction.location is None
+    assert transaction.location_id is None
+
+
+def test_update_transaction_set_user_id(
+    db: Session,
+    create_user: CreateUserProtocol,
+    create_transaction: CreateTransactionProtocol,
+) -> None:
+    user_old = create_user(commit=False)
+    existing = create_transaction(user=user_old, commit=False)
+    user = create_user(commit=True)
+
+    transaction = crud.update_transaction(db=db, transaction=existing, user=user.id)
+    assert transaction == existing
+    assert transaction.user_id == user.id
+    assert transaction.user == user
+
+
+def test_update_transaction_set_user(
+    db: Session,
+    create_user: CreateUserProtocol,
+    create_transaction: CreateTransactionProtocol,
+) -> None:
+    user_old = create_user(commit=False)
+    existing = create_transaction(user=user_old, commit=False)
+    user = create_user(commit=True)
+
+    transaction = crud.update_transaction(db=db, transaction=existing, user=user)
+    assert transaction == existing
+    assert transaction.user == user
+    assert transaction.user_id == user.id
+
+
+def test_update_transaction_remove_user(
+    db: Session,
+    create_user: CreateUserProtocol,
+    create_transaction: CreateTransactionProtocol,
+) -> None:
+    user_old = create_user(commit=False)
+    existing = create_transaction(user=user_old, commit=True)
+
+    transaction = crud.update_transaction(db=db, transaction=existing, user="")
+    assert transaction == existing
+    assert transaction.user is None
+    assert transaction.user_id is None
+
+
+def test_update_transaction_set_date_no_tzinfo(
+    db: Session,
+    create_transaction: CreateTransactionProtocol,
+) -> None:
+    existing = create_transaction(date=datetime.now())
+    date = datetime(2020, 1, 1)
+    expected = date.replace(tzinfo=timezone.utc)
+
+    transaction = crud.update_transaction(db=db, transaction=existing, date=date)
+    assert transaction == existing
+    assert transaction.date == expected
+
+
+@pytest.mark.parametrize("offest", (-6, 0, 7))
+def test_update_transaction_set_date_with_tzinfo(
+    db: Session,
+    create_transaction: CreateTransactionProtocol,
+    offest: int,
+) -> None:
+    existing = create_transaction(date=datetime.now())
+    date = datetime(2020, 1, 1, tzinfo=timezone(offset=timedelta(hours=offest)))
+    expected = date.astimezone(timezone.utc)
+
+    transaction = crud.update_transaction(db=db, transaction=existing, date=date)
+    assert transaction == existing
+    assert transaction.date == expected
+
+
+def test_update_transaction_set_amount(
+    db: Session, create_transaction: CreateTransactionProtocol
+) -> None:
+    existing = create_transaction(amount=100)
+    amount = -100
+
+    transaction = crud.update_transaction(db=db, transaction=existing, amount=amount)
+    assert transaction.amount == amount
+
+
+def test_update_transaction_remove_amount(
+    db: Session, create_transaction: CreateTransactionProtocol
+) -> None:
+    existing = create_transaction(amount=100)
+    amount: Literal[""] = ""
+
+    transaction = crud.update_transaction(db=db, transaction=existing, amount=amount)
+    assert transaction.amount is None
+
+
+def test_update_transaction_set_category(
+    db: Session, create_transaction: CreateTransactionProtocol
+) -> None:
+    existing = create_transaction()
+    category = TransactionCategory.OTHER
+
+    transaction = crud.update_transaction(
+        db=db, transaction=existing, category=category
+    )
+    assert transaction.category == category
+
+
+def test_update_transaction_remove_category(
+    db: Session, create_transaction: CreateTransactionProtocol
+) -> None:
+    existing = create_transaction(category=TransactionCategory.OTHER)
+    category: Literal[""] = ""
+
+    transaction = crud.update_transaction(
+        db=db, transaction=existing, category=category
+    )
+    assert transaction.category is None
+
+
+def test_update_transaction_set_description(
+    db: Session, create_transaction: CreateTransactionProtocol
+) -> None:
+    existing = create_transaction(description=random_lower_string())
+    description = random_lower_string()
+
+    transaction = crud.update_transaction(
+        db=db, transaction=existing, description=description
+    )
+    assert transaction.description == description
+
+
+def test_update_transaction_remove_description(
+    db: Session, create_transaction: CreateTransactionProtocol
+) -> None:
+    existing = create_transaction(description=random_lower_string())
+    description = ""
+
+    transaction = crud.update_transaction(
+        db=db, transaction=existing, description=description
+    )
+    assert transaction.description is None
+
+
+def test_update_transaction_set_note(
+    db: Session, create_transaction: CreateTransactionProtocol
+) -> None:
+    existing = create_transaction(notes=random_lower_string())
+    note = random_lower_string()
+
+    transaction = crud.update_transaction(db=db, transaction=existing, note=note)
+    assert transaction.note == note
+
+
+def test_update_transaction_remove_note(
+    db: Session, create_transaction: CreateTransactionProtocol
+) -> None:
+    existing = create_transaction(notes=random_lower_string())
+    note = ""
+
+    transaction = crud.update_transaction(db=db, transaction=existing, note=note)
+    assert transaction.note is None
 
 
 @pytest.mark.anyio
