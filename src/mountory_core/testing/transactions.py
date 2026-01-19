@@ -11,6 +11,7 @@ from mountory_core.activities.types import ActivityId
 from mountory_core.locations.models import Location
 from mountory_core.locations.types import LocationId
 from mountory_core.transactions.models import Transaction
+from mountory_core.transactions.types import TransactionCategory
 from mountory_core.users.models import User
 from mountory_core.users.types import UserId
 
@@ -25,6 +26,7 @@ class TransactionParamDict(TypedDict):
 def create_rndm_transaction(
     amount: int | None = None,
     date: datetime | None = None,
+    category: TransactionCategory | None = None,
     description: str | None = None,
     note: str | None = None,
     activity: Activity | ActivityId | None = None,
@@ -42,7 +44,12 @@ def create_rndm_transaction(
         _params["location_id"] = location
 
     return Transaction(
-        amount=amount, date=date, description=description, note=note, **_params
+        amount=amount,
+        date=date,
+        description=description,
+        note=note,
+        category=category,
+        **_params,
     )
 
 
@@ -50,6 +57,7 @@ def create_db_transaction(
     db: Session,
     amount: int | None = None,
     date: datetime | None = None,
+    category: TransactionCategory | None = None,
     description: str | None = None,
     notes: str | None = None,
     activity: Activity | ActivityId | None = None,
@@ -68,6 +76,7 @@ def create_db_transaction(
     transaction = create_rndm_transaction(
         amount=amount,
         date=date,
+        category=category,
         description=description,
         note=notes,
         activity=activity,
@@ -90,6 +99,7 @@ class CreateTransactionProtocol(Protocol):
         self,
         amount: int | None = ...,
         date: datetime | None = ...,
+        category: TransactionCategory | None = ...,
         description: str | None = ...,
         notes: str | None = ...,
         activity: Activity | ActivityId | None = ...,
@@ -110,6 +120,7 @@ def create_transaction_context(
     def _factory(
         amount: int | None = None,
         date: datetime | None = None,
+        category: TransactionCategory | None = None,
         description: str | None = None,
         notes: str | None = None,
         activity: Activity | ActivityId | None = None,
@@ -123,6 +134,7 @@ def create_transaction_context(
             db=db,
             amount=amount,
             date=date,
+            category=category,
             description=description,
             notes=notes,
             activity=activity,
