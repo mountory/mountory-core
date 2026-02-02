@@ -1,9 +1,9 @@
 version: 2
 updates:
   # Python
-  - package-ecosystem: uv
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
-      interval: weekly
+      interval: "weekly"
     commit-message:
       prefix: ⬆
