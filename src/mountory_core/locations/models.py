@@ -1,19 +1,23 @@
-from pydantic import BaseModel
 import uuid
 from typing import TYPE_CHECKING, Annotated
 
+from pydantic import BaseModel
 from sqlalchemy import Column, Enum
 from sqlmodel import Field, Relationship, SQLModel
 
 from mountory_core.activities.types import ActivityType
 from mountory_core.locations.types import (
-    LocationId,
-    LocationType,
-    ParentPathDict,
-    LocationNameField,
+    LOCATION_ABBREVIATION_MAX_LENGTH,
+    LOCATION_ABBREVIATION_MIN_LENGTH,
+    LOCATION_NAME_MAX_LENGTH,
+    LOCATION_NAME_MIN_LENGTH,
     LocationAbbreviationField,
+    LocationId,
+    LocationNameField,
+    LocationType,
     LocationTypeField,
     OptionalLocationNameField,
+    ParentPathDict,
 )
 from mountory_core.types import (
     OptionalWebsiteField,
@@ -35,9 +39,16 @@ class LocationActivityTypeAssociation(SQLModel, table=True):
 
 
 class Location(SQLModel, table=True):
-    name: Annotated[str, Field(min_length=3, max_length=255)]
+    name: Annotated[
+        str,
+        Field(min_length=LOCATION_NAME_MIN_LENGTH, max_length=LOCATION_NAME_MAX_LENGTH),
+    ]
     id: LocationId = Field(default_factory=uuid.uuid4, primary_key=True)
-    abbreviation: str | None = Field(default=None, min_length=3, max_length=255)
+    abbreviation: str | None = Field(
+        default=None,
+        min_length=LOCATION_ABBREVIATION_MIN_LENGTH,
+        max_length=LOCATION_ABBREVIATION_MAX_LENGTH,
+    )
     website: OptionalWebsiteField = None
     location_type: LocationType = Field(
         sa_column=Column(Enum(LocationType)), default=LocationType.other

@@ -1,4 +1,5 @@
 import uuid
+from typing import Annotated
 
 from pydantic import EmailStr, BaseModel
 from sqlmodel import Field, SQLModel
@@ -10,6 +11,8 @@ from mountory_core.users.types import (
     PasswordField,
     OptionalEmailField,
     OptionalPasswordField,
+    PASSWORD_MIN_LENGTH,
+    PASSWORD_MAX_LENGTH,
 )
 
 
@@ -19,12 +22,6 @@ class UserCreate(BaseModel):
     full_name: OptionalFullNameField = None
     is_active: bool = True
     is_superuser: bool = False
-
-
-class UserRegister(BaseModel):
-    email: EmailField
-    password: PasswordField
-    full_name: OptionalFullNameField = None
 
 
 class UserUpdate(BaseModel):
@@ -44,9 +41,18 @@ class UserUpdate(BaseModel):
 class User(SQLModel, table=True):
     __tablename__ = "user"
 
+    hashed_password: Annotated[
+        str,
+        Field(
+            min_length=PASSWORD_MIN_LENGTH,
+            max_length=PASSWORD_MAX_LENGTH,
+            nullable=False,
+        ),
+    ]
+    email: Annotated[
+        EmailStr, Field(unique=True, nullable=False, index=True, max_length=255)
+    ]
     id: UserId = Field(default_factory=uuid.uuid4, primary_key=True)
-    hashed_password: str
-    email: EmailStr = Field(unique=True, index=True, max_length=255)
     full_name: str | None = Field(default=None, max_length=255)
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
