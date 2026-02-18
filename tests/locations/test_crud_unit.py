@@ -34,7 +34,7 @@ def test_update_location_commit_default() -> None:
     db = MagicMock(spec=Session)
 
     data = LocationUpdate(name=random_lower_string())
-    location = Location()
+    location = MagicMock(spec=Location)
 
     _ = crud.update_location(db=db, location=location, data=data)
 
@@ -45,7 +45,7 @@ def test_update_location_no_commit() -> None:
     db = MagicMock(spec=Session)
 
     data = LocationUpdate(name=random_lower_string())
-    location = Location()
+    location = MagicMock(spec=Location)
 
     _ = crud.update_location(db=db, location=location, data=data, commit=False)
 

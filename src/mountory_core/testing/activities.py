@@ -105,7 +105,8 @@ def create_db_activity(
     )
     if types:
         activity.type_associations = [
-            ActivityTypeAssociation(activity_type=t) for t in types
+            ActivityTypeAssociation(activity_type=t)  # ty:ignore[missing-argument]
+            for t in types
         ]
     db.add(activity)
 
@@ -114,9 +115,9 @@ def create_db_activity(
 
     for user in users:
         if isinstance(user, User):
-            db.add(ActivityUserLink(user=user, activity=activity))
+            db.add(ActivityUserLink(user=user, activity=activity))  # ty:ignore[missing-argument]
         else:
-            db.add(ActivityUserLink(user_id=user, activity=activity))
+            db.add(ActivityUserLink(user_id=user, activity=activity))  # ty:ignore[missing-argument]
 
     if commit:
         db.commit()

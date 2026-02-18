@@ -49,7 +49,7 @@ def test_activity_model_start_parse_int(
     model: type[ActivityCreate | ActivityUpdate],
 ) -> None:
     activity_model = model(
-        start=0,  # type:ignore[arg-type] # this is valid, pydantic will try to parse a date from it.
+        start=0,  # type:ignore[arg-type]  # ty:ignore[invalid-argument-type] # this is valid, pydantic will try to parse a date from it.
         title=random_lower_string(),
     )
 

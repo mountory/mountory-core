@@ -61,7 +61,7 @@ class Location(SQLModel, table=True):
     def activity_types(self, values: list[ActivityType]) -> None:
         """Set activity types directly associated with this location"""
         self.activity_type_associations = [
-            LocationActivityTypeAssociation(activity_type=activity_type, location=self)
+            LocationActivityTypeAssociation(activity_type=activity_type, location=self)  # ty:ignore[missing-argument]
             for activity_type in values
         ]
 

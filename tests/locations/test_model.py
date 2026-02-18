@@ -53,7 +53,7 @@ def test_location_model_abbreviation_parse_as_none(
 def test_location_model_website_parse_as_none(
     model: type[LocationCreate | LocationUpdate], value: None | Literal[""]
 ) -> None:
-    location_model = model(website=value, name=random_lower_string())  # type:ignore[arg-type]
+    location_model = model(website=value, name=random_lower_string())  # type:ignore[arg-type]  # ty:ignore[invalid-argument-type]
 
     assert location_model.website is None
 
@@ -122,19 +122,19 @@ def test_location_activity_types_setter() -> None:
 
     assert location.activity_types == activity_types
     assert location.activity_type_associations == [
-        LocationActivityTypeAssociation(activity_type=activity_type, location=location)
+        LocationActivityTypeAssociation(activity_type=activity_type, location=location)  # ty:ignore[missing-argument]
         for activity_type in activity_types
     ]
 
 
 def test_location_parent_path_empty() -> None:
-    location = Location()
+    location = Location(name=random_lower_string())
     assert location.parent_path == []
 
 
 def test_location_parent_path() -> None:
     length = 4
-    locations = [Location()]
+    locations = [Location(name=random_lower_string())]
 
     for i in range(length - 1):
         locations.append(Location(name=random_lower_string(), parent=locations[i]))
@@ -146,14 +146,14 @@ def test_location_parent_path() -> None:
 
 
 def test_location_locations_activity_types_no_children() -> None:
-    location = Location()
+    location = Location(name=random_lower_string())
 
     assert location.locations_activity_types == []
 
 
 def test_location_locations_activity_types_no_childtypes() -> None:
-    location = Location()
-    child = Location(parent=location)
+    location = Location(name=random_lower_string())
+    child = Location(parent=location, name=random_lower_string())
     location.locations = [child]
 
     assert location.locations_activity_types == []
@@ -161,8 +161,8 @@ def test_location_locations_activity_types_no_childtypes() -> None:
 
 def test_location_locations_activity_types_child_with_types() -> None:
     activity_types = [ActivityType.CLIMBING_ALPINE]
-    location = Location()
-    child = Location(parent=location)
+    location = Location(name=random_lower_string())
+    child = Location(parent=location, name=random_lower_string())
     child.activity_types = activity_types
     location.locations = [child]
 
@@ -172,11 +172,11 @@ def test_location_locations_activity_types_child_with_types() -> None:
 def test_location_locations_activity_types_child_with_childtypes() -> None:
     direct_types = [ActivityType.CLIMBING_BOULDERING]
     indirect_types = [ActivityType.RUNNING_JOGGING]
-    location = Location()
+    location = Location(name=random_lower_string())
     location.activity_types = [ActivityType.WINTER_SNOWSHOEING]
-    child = Location(parent=location)
+    child = Location(parent=location, name=random_lower_string())
     child.activity_types = direct_types
-    child_child = Location(parent=child)
+    child_child = Location(parent=child, name=random_lower_string())
     child_child.activity_types = indirect_types
     child.locations = [child_child]
     location.locations = [child]

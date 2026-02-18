@@ -26,7 +26,7 @@ def create_rndm_transaction(
     amount: int | None = None,
     date: datetime | None = None,
     description: str | None = None,
-    notes: str | None = None,
+    note: str | None = None,
     activity: Activity | ActivityId | None = None,
     location: Location | LocationId | None = None,
 ) -> Transaction:
@@ -42,7 +42,7 @@ def create_rndm_transaction(
         _params["location_id"] = location
 
     return Transaction(
-        amount=amount, date=date, description=description, notes=notes, **_params
+        amount=amount, date=date, description=description, note=note, **_params
     )
 
 
@@ -69,7 +69,7 @@ def create_db_transaction(
         amount=amount,
         date=date,
         description=description,
-        notes=notes,
+        note=notes,
         activity=activity,
         location=location,
     )

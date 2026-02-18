@@ -42,7 +42,7 @@ def create_activity(
     if data.types:
         logger.debug("create_activity, set activity types")
         activity.type_associations = [
-            ActivityTypeAssociation(activity_type=activity_type)
+            ActivityTypeAssociation(activity_type=activity_type)  # ty:ignore[missing-argument] setting ``activity_id`` will be handled by ActivityTypeAssociation
             for activity_type in data.types
         ]
     logger.debug(f"create_activity, add user associations user_ids={data.user_ids}")

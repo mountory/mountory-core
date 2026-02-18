@@ -1,3 +1,4 @@
+from pydantic import HttpUrl
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Protocol
@@ -42,7 +43,10 @@ def create_random_location(
     if loc_type is None:
         loc_type = LocationType.other
     location = Location(
-        name=name, website=website, abbreviation=abbreviation, location_type=loc_type
+        name=name,
+        website=HttpUrl(website),
+        abbreviation=abbreviation,
+        location_type=loc_type,
     )
     if isinstance(parent, Location):
         location.parent = parent

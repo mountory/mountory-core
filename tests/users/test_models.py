@@ -1,6 +1,6 @@
 from mountory_core.testing.utils import random_email, random_lower_string
 from pydantic import ValidationError
-from mountory_core.users.models import UserCreate, UserRegister, UserUpdate, User
+from mountory_core.users.models import UserCreate, UserRegister, UserUpdate
 import pytest
 
 
@@ -82,7 +82,7 @@ def test_user_update_email_password_full_name() -> None:
 @pytest.mark.parametrize("email", ("testmail", "mail@mail", "mail@", "@mail.com"))
 @pytest.mark.parametrize("model", (UserCreate, UserRegister, UserUpdate))
 def test_user_model_email_invalid(
-    model: type[UserCreate | UserRegister | UserUpdate | User], email: str
+    model: type[UserCreate | UserRegister | UserUpdate], email: str
 ) -> None:
     password = random_lower_string()
 
@@ -96,7 +96,7 @@ def test_user_model_email_invalid(
 @pytest.mark.parametrize("email", ("test@mail.com",))
 @pytest.mark.parametrize("model", (UserCreate, UserRegister, UserUpdate))
 def test_user_model_email_valid(
-    model: type[UserCreate | UserRegister | UserUpdate | User], email: str
+    model: type[UserCreate | UserRegister | UserUpdate], email: str
 ) -> None:
     password = random_lower_string()
     user_model = model(email=email, password=password)
