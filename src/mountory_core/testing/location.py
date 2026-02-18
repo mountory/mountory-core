@@ -5,13 +5,15 @@ from typing import Protocol
 
 from sqlmodel import Session, col, delete
 
-from mountory_core.locations.models import Location
+from mountory_core.locations.models import Location, LocationUserFavorite
 from mountory_core.locations.types import LocationType, LocationId
 from mountory_core.testing.utils import random_http_url, random_lower_string
+from mountory_core.users.models import User
+from mountory_core.users.types import UserId
 
 
 def create_random_location(
-    db: Session,
+    db: Session | None = None,
     name: str | None = None,
     abbreviation: str | None = None,
     website: str | None = None,
@@ -52,10 +54,12 @@ def create_random_location(
         location.parent = parent
     elif parent is not None:
         location.parent_id = parent
-    db.add(location)
-    if commit:
-        db.commit()
-        db.refresh(location)
+
+    if db:
+        db.add(location)
+        if commit:
+            db.commit()
+            db.refresh(location)
     return location
 
 
@@ -111,3 +115,81 @@ def create_location_context(
     stmt = delete(Location).where(col(Location.id).in_(loc.id for loc in created))
     db.exec(stmt)
     db.commit()
+
+
+def create_random_location_favorite(
+    user: User | UserId,
+    location: Location | LocationId,
+    db: Session | None = None,
+    commit: bool = True,
+) -> LocationUserFavorite:
+    favorite = LocationUserFavorite()  # ty:ignore[missing-argument]
+
+    if isinstance(user, User):
+        favorite.user = user
+    else:
+        favorite.user_id = user
+
+    if isinstance(location, Location):
+        favorite.location = location
+    else:
+        favorite.location_id = location
+
+    if db:
+        db.add(favorite)
+        if commit:
+            db.commit()
+            db.refresh(favorite)
+
+    return favorite
+
+
+class CreateLocationFavoriteProtocol(Protocol):
+    def __call__(
+        self,
+        user: User | UserId,
+        location: Location | LocationId,
+        *,
+        commit: bool = ...,
+        cleanup: bool = ...,
+    ) -> LocationUserFavorite: ...
+
+
+@contextmanager
+def create_location_favorite_context(
+    db: Session,
+) -> Generator[CreateLocationFavoriteProtocol, None, None]:
+    """
+
+    :param db:
+    :return:
+    """
+
+    created = []
+
+    def factory(
+        user: User | UserId,
+        location: Location | LocationId,
+        *,
+        commit: bool = True,
+        cleanup: bool = True,
+    ) -> LocationUserFavorite:
+        favorite = create_random_location_favorite(
+            db=db,
+            user=user,
+            location=location,
+            commit=commit,
+        )
+
+        if cleanup:
+            created.append(favorite)
+        return favorite
+
+    yield factory
+
+    try:
+        for item in created:
+            db.delete(item)
+        db.commit()
+    finally:
+        db.rollback()

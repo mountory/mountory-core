@@ -13,35 +13,44 @@ from mountory_core.activities.models import ActivityCreate, ActivityUpdate
 
 def test_create_activity_commit_default() -> None:
     db = MagicMock(spec=Session)
-
-    data = ActivityCreate(title=random_lower_string())
-
-    _ = crud.create_activity(db=db, data=data)
-
+    _ = crud.create_activity(db=db, title=random_lower_string())
     db.commit.assert_called_once()
 
 
 def test_create_activity_commit() -> None:
     db = MagicMock(spec=Session)
-
-    data = ActivityCreate(title=random_lower_string())
-
-    _ = crud.create_activity(db=db, data=data, commit=True)
-
+    _ = crud.create_activity(db=db, title=random_lower_string(), commit=True)
     db.commit.assert_called_once()
 
 
 def test_create_activity_no_commit() -> None:
     db = MagicMock(spec=Session)
-
-    data = ActivityCreate(title=random_lower_string())
-
-    _ = crud.create_activity(db=db, data=data, commit=False)
-
+    _ = crud.create_activity(db=db, title=random_lower_string(), commit=False)
     db.commit.assert_not_called()
 
 
-def test_update_activity_by_id_commit_default() -> None:
+def test_create_activity_data_commit_default() -> None:
+    db = MagicMock(spec=Session)
+    data = ActivityCreate(title=random_lower_string())
+    _ = crud.create_activity(db=db, data=data)
+    db.commit.assert_called_once()
+
+
+def test_create_activity_data_commit() -> None:
+    db = MagicMock(spec=Session)
+    data = ActivityCreate(title=random_lower_string())
+    _ = crud.create_activity(db=db, data=data, commit=True)
+    db.commit.assert_called_once()
+
+
+def test_create_activity_data_no_commit() -> None:
+    db = MagicMock(spec=Session)
+    data = ActivityCreate(title=random_lower_string())
+    _ = crud.create_activity(db=db, data=data, commit=False)
+    db.commit.assert_not_called()
+
+
+def test_update_activity_data_by_id_commit_default() -> None:
     db = MagicMock(spec=Session)
 
     activity_id = uuid.uuid4()
@@ -52,7 +61,7 @@ def test_update_activity_by_id_commit_default() -> None:
     db.commit.assert_called_once()
 
 
-def test_update_activity_by_id_commit() -> None:
+def test_update_activity_data_by_id_commit() -> None:
     db = MagicMock(spec=Session)
 
     activity_id = uuid.uuid4()
@@ -63,7 +72,7 @@ def test_update_activity_by_id_commit() -> None:
     db.commit.assert_called_once()
 
 
-def test_update_activity_by_id_no_commit() -> None:
+def test_update_activity_data_by_id_no_commit() -> None:
     db = MagicMock(spec=Session)
 
     activity_id = uuid.uuid4()

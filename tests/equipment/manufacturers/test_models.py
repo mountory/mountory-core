@@ -13,7 +13,7 @@ from mountory_core.testing.equipment import (
     CreateManufacturerProtocol,
     create_rndm_manufacturer,
 )
-from mountory_core.testing.user import CreateUserProtocol, _create_random_user
+from mountory_core.testing.user import CreateUserProtocol, create_default_user
 from mountory_core.testing.utils import random_lower_string
 
 
@@ -109,7 +109,7 @@ def test_manufacturer_defaults() -> None:
 
 def test_manufacturer_access_defaults() -> None:
     manufacturer = create_rndm_manufacturer()
-    user = _create_random_user()
+    user = create_default_user()
 
     access = ManufacturerAccess.model_validate(
         {"manufacturer_id": manufacturer.id, "user_id": user.id}
