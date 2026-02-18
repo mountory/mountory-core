@@ -1,7 +1,10 @@
+from typing_extensions import deprecated
 from collections.abc import Collection, Iterable
+from datetime import datetime, timedelta
+from typing import Literal, overload
 
 from sqlalchemy import distinct, insert
-from sqlmodel import Session, col, delete, func, select
+from sqlmodel import Session, col, delete, func, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from mountory_core.activities.models import (
@@ -246,54 +249,151 @@ def read_activity_types_by_user_ids(
     return list(db.exec(stmt).all())
 
 
+@overload
+@deprecated(
+    """
+    Passing update values as single ``data`` object is deprecated.
+    Pass values as separate parameters instead.
+    """
+)
 def update_activity_by_id(
-    *,
     db: Session,
+    *,
     activity_id: ActivityId,
     data: ActivityUpdate,
     commit: bool = True,
+) -> None: ...
+
+
+@overload
+def update_activity_by_id(
+    db: Session,
+    *,
+    activity_id: ActivityId,
+    title: str | None = None,
+    description: str | Literal[""] | None = None,
+    start: datetime | Literal[""] | None = None,
+    duration: timedelta | Literal[""] | None = None,
+    location: LocationId | Location | Literal[""] | None = None,
+    users: Collection[UserId] | None = None,
+    types: Collection[ActivityType] | None = None,
+    parent: ActivityId | Activity | Literal[""] | None = None,
+    commit: bool = True,
 ) -> None:
     """
+    Update activity by id.
+
+    Parameters not provided or passed as ``None`` will be ignored.
 
     :param db: Database session
-    :param activity_id: ``ActivityID`` of the activity to update.
-    :param data: Data to update the activity. Unset fields will be ignored.
-    :param commit: Whether to commit the database transaction. (Default: ``True``)
+    :param activity_id: ID of the activity to update.
+    :param title: Set title of the activity.
+        To remove pass an empty string. (Default: ``None``)
+    :param description: Set description of the activity.
+        To remove pass an empty string. (Default: ``None``)
+    :param start: Set start of the activity.
+        To remove pass an empty string. (Default: ``None``)
+    :param duration: Set duration of the activity.
+        To remove pass an empty string. (Default: ``None``)
+    :param location: Set location of the activity.
+        To remove pass an empty string. (Default: ``None``)
+    :param users: Set users of the activity. Will replace the current associated users.
+        To remove pass an empty collection. (Default: ``None``)
+    :param types: Set associated activity types. Will replace the current associated types.
+        To remove pass an empty collection. (Default: ``None``)
+    :param parent: Set parent activity. To remove pass an empty string. (Default: ``None``)
+    :param commit: Whether to commit the changes to the database. (Default: ``True``)
 
-    :return: ``None``
+    :return: None
     """
 
-    activity = read_activity_by_id(db=db, activity_id=activity_id)
-    if activity is None:
-        return
 
-    model_data = data.model_dump(exclude_unset=True, exclude={"user_ids", "types"})
-    logger.debug(f"update_activity_by_id, update {activity_id} with data={model_data}")
-    activity.sqlmodel_update(model_data)
+def update_activity_by_id(
+    db: Session,
+    *,
+    activity_id: ActivityId,
+    data: ActivityUpdate | None = None,
+    title: str | None = None,
+    description: str | Literal[""] | None = None,
+    start: datetime | Literal[""] | None = None,
+    duration: timedelta | Literal[""] | None = None,
+    location: LocationId | Location | Literal[""] | None = None,
+    users: Collection[UserId] | None = None,
+    types: Collection[ActivityType] | None = None,
+    parent: ActivityId | Activity | Literal[""] | None = None,
+    commit: bool = True,
+) -> None:
+    if data is not None:
+        title = data.title
+        if "description" in data.model_fields_set:
+            description = None if data.description == "" else data.description
+        if "start" in data.model_fields_set:
+            start = "" if data.start is None else data.start
+        if "duration" in data.model_fields_set:
+            duration = "" if data.duration is None else data.duration
+        if "location_id" in data.model_fields_set:
+            location = "" if data.location_id is None else data.location_id
+        if "parent_id" in data.model_fields_set:
+            parent = "" if data.parent_id is None else data.parent_id
+        users = data.user_ids
+        types = data.types
 
-    user_ids = data.user_ids
-    if user_ids is not None:
-        logger.debug(f"update_activity_by_id, handle user_ids, {user_ids=}")
+    data_: dict[str, ActivityId | LocationId | str | datetime | timedelta | None] = {}
+
+    if title is not None:
+        if title == "":
+            raise ValueError("Title cannot be empty")
+        data_["title"] = title
+
+    if description is not None:
+        data_["description"] = None if description == "" else description
+    if start is not None:
+        data_["start"] = None if start == "" else start
+    if duration is not None:
+        data_["duration"] = None if duration == "" else duration
+
+    if location is None:
+        pass
+    elif isinstance(location, Location):
+        data_["location_id"] = location.id
+    else:
+        data_["location_id"] = None if location == "" else location
+
+    if parent is None:
+        pass
+    elif isinstance(parent, Activity):
+        data_["parent_id"] = parent.id
+    else:
+        data_["parent_id"] = None if parent == "" else parent
+
+    if users is not None:
+        logger.debug(f"update_activity_by_id, handle user_ids, {users=}")
         logger.debug("update_activity_by_id, delete existing user links")
-        db.exec(delete(ActivityUserLink).filter_by(activity_id=activity_id))
-        if user_ids:
-            logger.debug("update_activity_by_id, add new user links")
-            db.exec(
-                insert(ActivityUserLink).values(activity_id=activity_id),
-                params=tuple({"user_id": user_id} for user_id in user_ids),
-            )
+        with db.begin_nested():
+            db.exec(delete(ActivityUserLink).filter_by(activity_id=activity_id))
+            if users:
+                logger.debug("update_activity_by_id, add new user links")
+                db.exec(
+                    insert(ActivityUserLink).values(activity_id=activity_id),
+                    params=tuple({"user_id": user_id} for user_id in users),
+                )
 
-    types = data.types
     if types is not None:
         logger.debug(f"update_activity_by_id, handle types, {types=}")
         logger.debug("update_activity_by_id, delete existing type associations")
-        db.exec(delete(ActivityTypeAssociation).filter_by(activity_id=activity_id))
-        if types:
-            logger.debug("update_activity_by_id, add new type associations")
-            db.exec(
-                insert(ActivityTypeAssociation).values(activity_id=activity_id),
-                params=tuple({"activity_type": t} for t in types),
-            )
+        with db.begin_nested():
+            db.exec(delete(ActivityTypeAssociation).filter_by(activity_id=activity_id))
+            if types:
+                logger.debug("update_activity_by_id, add new type associations")
+                db.exec(
+                    insert(ActivityTypeAssociation).values(activity_id=activity_id),
+                    params=tuple({"activity_type": t} for t in types),
+                )
+
+    if not data_:
+        return
+    stmt = update(Activity).filter_by(id=activity_id).values(data_)
+    db.exec(stmt)
 
     if commit:
         logger.debug("update_activity_by_id, commit database transaction")

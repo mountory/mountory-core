@@ -35,11 +35,11 @@ def test_activity_creat_defaults() -> None:
 
 
 @pytest.mark.parametrize("value", ("", None))
-@pytest.mark.parametrize("model", (ActivityCreate, ActivityUpdate, Activity))
+@pytest.mark.parametrize("model", (ActivityCreate, ActivityUpdate))
 def test_activity_model_description_parse_as_none(
     model: type[ActivityCreate | ActivityUpdate], value: Literal[""] | None
 ) -> None:
-    create = ActivityCreate(description=value, title=random_lower_string())
+    create = model(description=value, title=random_lower_string())
 
     assert create.description is None
 

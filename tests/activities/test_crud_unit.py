@@ -41,7 +41,7 @@ def test_create_activity_no_commit() -> None:
     db.commit.assert_not_called()
 
 
-def test_update_activity_by_id_commit_default() -> None:
+def test_update_activity_data_by_id_commit_default() -> None:
     db = MagicMock(spec=Session)
 
     activity_id = uuid.uuid4()
@@ -52,7 +52,7 @@ def test_update_activity_by_id_commit_default() -> None:
     db.commit.assert_called_once()
 
 
-def test_update_activity_by_id_commit() -> None:
+def test_update_activity_data_by_id_commit() -> None:
     db = MagicMock(spec=Session)
 
     activity_id = uuid.uuid4()
@@ -63,7 +63,7 @@ def test_update_activity_by_id_commit() -> None:
     db.commit.assert_called_once()
 
 
-def test_update_activity_by_id_no_commit() -> None:
+def test_update_activity_data_by_id_no_commit() -> None:
     db = MagicMock(spec=Session)
 
     activity_id = uuid.uuid4()

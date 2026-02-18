@@ -1,8 +1,7 @@
 import uuid
 from datetime import datetime, timedelta
-from typing import Annotated
 
-from pydantic import BaseModel, PrivateAttr, StringConstraints
+from pydantic import BaseModel, PrivateAttr
 from sqlalchemy import Column, SQLColumnExpression, func
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlmodel import Field, Relationship, SQLModel, col, select
@@ -24,7 +23,6 @@ from mountory_core.locations.models import Location
 from mountory_core.locations.types import LocationId
 from mountory_core.transactions.models import Transaction
 from mountory_core.transactions.utils import calc_transactions_total
-from mountory_core.types import DefaultIfEmptyStrValidator
 from mountory_core.users.models import User
 from mountory_core.users.types import UserId
 
@@ -53,12 +51,7 @@ class Activity(SQLModel, table=True):
 
     title: ActivityTitleField
     id: ActivityId = Field(default_factory=uuid.uuid4, primary_key=True)
-    description: Annotated[
-        str | None,
-        Field(default=None),
-        StringConstraints(max_length=2048),
-        DefaultIfEmptyStrValidator,
-    ] = None
+    description: ActivityDescriptionField = None
     start: datetime | None = Field(default=None, sa_column=Column(TZDateTime))
     duration: timedelta | None = Field(default=None)
 

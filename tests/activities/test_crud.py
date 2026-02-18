@@ -1,7 +1,7 @@
 from pydantic.dataclasses import dataclass
 import uuid
 from datetime import UTC, datetime, timedelta, timezone
-from typing import Collection
+from typing import Collection, Literal
 
 import pytest
 from mountory_core.activities import crud
@@ -559,6 +559,7 @@ def test_update_activity(
     create_location: CreateLocationProtocol,
 ) -> None:
     existing = create_activity(commit=False)
+    parent = create_activity(commit=False)
     users = [create_user(commit=False) for _ in range(10)]
     location = create_location()
 
@@ -569,6 +570,7 @@ def test_update_activity(
         duration=timedelta(minutes=10),
         location_id=location.id,
         user_ids={u.id for u in users},
+        parent_id=parent.id,
     )
     update.start = datetime.now()
 
@@ -585,12 +587,325 @@ def test_update_activity(
     check_lists(existing.users, users)
 
 
-def test_update_activity_not_existing(db: Session) -> None:
+def test_update_activity_by_id_set_title(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity()
+    title = random_lower_string()
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, title=title)
+    assert existing.title == title
+
+
+def test_update_activity_id_set_title_empty_str_raises(
+    db: Session, create_activity: CreateActivityProtocol
+) -> None:
+    existing = create_activity()
+    title = ""
+
+    with pytest.raises(ValueError):
+        crud.update_activity_by_id(db=db, activity_id=existing.id, title=title)
+
+
+def test_update_activity_by_id_set_title_none(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity()
+    title = None
+    expected = existing.model_dump()
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, title=title)
+    assert existing.model_dump() == expected
+
+
+def test_update_activity_by_id_set_description(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity()
+    description = random_lower_string()
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, description=description)
+    assert existing.description == description
+
+
+def test_update_activity_by_id_set_description_none(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity()
+    description = None
+    expected = existing.model_dump()
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, description=description)
+    assert existing.model_dump() == expected
+
+
+def test_update_activity_by_id_remove_description(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity()
+    description = ""
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, description=description)
+    assert existing.description is None
+
+
+def test_update_activity_by_id_set_start_no_tzinfo(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity()
+    start = datetime(2022, 5, 12, 23, 4)
+    expected = start.replace(tzinfo=timezone.utc)
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, start=start)
+    assert existing.start == expected
+
+
+@pytest.mark.parametrize("offset", (-5, 0, 7))
+def test_update_activity_by_id_set_start(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+    offset: int,
+) -> None:
+    existing = create_activity()
+    start = datetime(
+        2022, 5, 12, 23, 4, tzinfo=timezone(offset=timedelta(hours=offset))
+    )
+    expected = start.astimezone(timezone.utc)
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, start=start)
+    assert existing.start == expected
+
+
+def test_update_activity_by_id_set_duration(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity()
+    duration = timedelta(minutes=10)
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, duration=duration)
+    assert existing.duration == duration
+
+
+def test_update_activity_by_id_set_duration_none(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity()
+    duration = None
+    expected = existing.model_dump()
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, duration=duration)
+    assert existing.model_dump() == expected
+
+
+def test_update_activity_by_id_remove_duration(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity()
+    duration: Literal[""] = ""
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, duration=duration)
+    assert existing.duration is None
+
+
+def test_update_activity_by_id_set_location_id(
+    db: Session,
+    create_location: CreateLocationProtocol,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    location = create_location(commit=False)
+    existing = create_activity(location=create_location(commit=False))
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, location=location.id)
+    assert existing.location_id == location.id
+    assert existing.location == location
+
+
+def test_update_activity_by_id_set_location(
+    db: Session,
+    create_location: CreateLocationProtocol,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    location = create_location(commit=False)
+    existing = create_activity(location=create_location(commit=False))
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, location=location)
+    assert existing.location == location
+    assert existing.location_id == location.id
+
+
+def test_update_activity_by_id_set_location_none(
+    db: Session,
+    create_location: CreateLocationProtocol,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity(location=create_location(commit=False))
+    expected = existing.model_dump()
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, location=None)
+    assert existing.model_dump() == expected
+
+
+def test_update_activity_by_id_remove_location(
+    db: Session,
+    create_location: CreateLocationProtocol,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity(location=create_location(commit=False))
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, location="")
+    assert existing.location is None
+    assert existing.location_id is None
+
+
+def test_update_activity_by_id_set_parent_id(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    parent = create_activity(commit=False)
+    parent_new = create_activity(commit=False)
+    existing = create_activity(parent=parent)
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, parent=parent_new.id)
+    assert existing.parent_id == parent_new.id
+    assert existing.parent == parent_new
+
+
+def test_update_activity_by_id_set_parent(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    parent = create_activity(commit=False)
+    parent_new = create_activity(commit=False)
+    existing = create_activity(parent=parent)
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, parent=parent_new)
+    assert existing.parent == parent_new
+    assert existing.parent_id == parent_new.id
+
+
+def test_update_activity_by_id_set_parent_none(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    parent = create_activity(commit=False)
+    existing = create_activity(parent=parent)
+    expected = existing.model_dump()
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, parent=None)
+    assert existing.model_dump() == expected
+
+
+def test_update_activity_by_id_remove_parent(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    parent = create_activity(commit=False)
+    existing = create_activity(parent=parent)
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, parent="")
+    assert existing.parent is None
+    assert existing.parent_id is None
+
+
+def test_update_activity_by_id_set_user_ids(
+    db: Session,
+    create_user: CreateUserProtocol,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    users = [create_user(commit=False)]
+    users_new = [create_user(commit=False)]
+    existing = create_activity(users=users)
+
+    crud.update_activity_by_id(
+        db=db, activity_id=existing.id, users={u.id for u in users_new}
+    )
+    assert existing.users == users_new
+
+
+def test_update_activity_by_id_set_user_ids_none(
+    db: Session,
+    create_user: CreateUserProtocol,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    users = [create_user(commit=False)]
+    existing = create_activity(users=users)
+    expected = existing.model_dump()
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, users=None)
+
+    assert existing.model_dump() == expected
+
+
+def test_update_activity_by_id_remove_users_ids(
+    db: Session,
+    create_user: CreateUserProtocol,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    users = [create_user(commit=False)]
+    existing = create_activity(users=users)
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, users=[])
+    assert existing.users == []
+
+
+def test_update_activity_by_id_set_types(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity(
+        types=[ActivityType.WINTER_HIKE, ActivityType.CYCLING_GRAVEL]
+    )
+    activity_types = [
+        ActivityType.CLIMBING_VIA_FERRATA,
+        ActivityType.RUNNING_TRAIL_RUNNING,
+    ]
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, types=activity_types)
+    assert existing.types == set(activity_types)
+
+
+def test_update_activity_by_id_set_types_none(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity(
+        types=[ActivityType.WINTER_HIKE, ActivityType.CYCLING_GRAVEL]
+    )
+    activity_types = None
+    expected = existing.model_dump()
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, types=activity_types)
+    assert existing.model_dump() == expected
+
+
+def test_update_activity_by_id_remove_types(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+) -> None:
+    existing = create_activity(
+        types=[ActivityType.WINTER_HIKE, ActivityType.CYCLING_GRAVEL]
+    )
+    activity_types: list[ActivityType] = []
+
+    crud.update_activity_by_id(db=db, activity_id=existing.id, types=activity_types)
+    assert existing.types == set()
+
+
+def test_update_activity_data_not_existing(db: Session) -> None:
     update = ActivityUpdate(title=random_lower_string())
     crud.update_activity_by_id(db=db, activity_id=uuid.uuid4(), data=update)
 
 
-def test_update_activity_remove_users(
+def test_update_activity_data_remove_users(
     db: Session,
     create_user: CreateUserProtocol,
     create_activity: CreateActivityProtocol,
@@ -608,7 +923,22 @@ def test_update_activity_remove_users(
     assert existing.users == []
 
 
-def test_update_activity_add_users(
+def test_update_activity_data_remove_locations(
+    db: Session,
+    create_activity: CreateActivityProtocol,
+    create_location: CreateLocationProtocol,
+) -> None:
+    location = create_location(commit=False)
+    existing = create_activity(location=location)
+
+    data = ActivityUpdate(location_id=None)
+    crud.update_activity_by_id(db=db, activity_id=existing.id, data=data)
+    db.refresh(existing)
+
+    assert existing.location is None
+
+
+def test_update_activity_data_add_users(
     db: Session,
     create_user: CreateUserProtocol,
     create_activity: CreateActivityProtocol,
@@ -625,7 +955,7 @@ def test_update_activity_add_users(
     check_lists(existing.users, users)
 
 
-def test_update_activity_empty_update(
+def test_update_activity_data_empty_update(
     db: Session, create_activity: CreateActivityProtocol
 ) -> None:
     existing = create_activity()
@@ -640,7 +970,7 @@ def test_update_activity_empty_update(
 
 
 @pytest.mark.parametrize("activity_type", ActivityType)
-def test_update_activity_types_set_new(
+def test_update_activity_data_types_set_new(
     db: Session, create_activity: CreateActivityProtocol, activity_type: ActivityType
 ) -> None:
     existing = create_activity()
@@ -653,7 +983,7 @@ def test_update_activity_types_set_new(
 
 
 @pytest.mark.parametrize("activity_type", ActivityType)
-def test_update_activity_types_add_new(
+def test_update_activity_data_add_new_types(
     db: Session, create_activity: CreateActivityProtocol, activity_type: ActivityType
 ) -> None:
     existing = create_activity()
@@ -666,7 +996,7 @@ def test_update_activity_types_add_new(
 
 
 @pytest.mark.parametrize("activity_type", ActivityType)
-def test_update_activity_types_remove_type(
+def test_update_activity_data_remove_type(
     db: Session, create_activity: CreateActivityProtocol, activity_type: ActivityType
 ) -> None:
     existing = create_activity(types=[activity_type])
