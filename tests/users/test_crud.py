@@ -1,3 +1,6 @@
+from typing import Literal
+
+from pytest import Subtests
 import uuid
 
 import pytest
@@ -12,13 +15,150 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 @pytest.mark.anyio
-async def test_create_user(async_db: AsyncSession) -> None:
+async def test_create_user_defaults(async_db: AsyncSession) -> None:
     email = random_email()
     password = random_lower_string()
-    user_in = UserCreate(email=email, password=password)
-    user = await crud.create_user(db=async_db, data=user_in)
+
+    user = await crud.create_user(db=async_db, email=email, password=password)
+
+    assert user.id is not None
     assert user.email == email
-    assert hasattr(user, "hashed_password")
+    assert user.hashed_password == password
+
+    assert user.full_name is None
+    assert user.is_active is True
+    assert user.is_superuser is False
+
+    # cleanup
+    await async_db.delete(user)
+    await async_db.commit()
+
+
+@pytest.mark.anyio
+async def test_create_user_set_user_id(async_db: AsyncSession) -> None:
+    email = random_email()
+    password = random_lower_string()
+
+    user_id = uuid.uuid4()
+
+    user = await crud.create_user(
+        db=async_db,
+        email=email,
+        password=password,
+        user_id=user_id,
+    )
+
+    assert user.id == user_id
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.id == user_id
+
+    # cleanup
+    await async_db.delete(user)
+    await async_db.commit()
+
+
+@pytest.mark.anyio
+async def test_create_user_set_user_id_none(async_db: AsyncSession) -> None:
+    email = random_email()
+    password = random_lower_string()
+
+    user_id = None
+    user = await crud.create_user(
+        db=async_db, email=email, password=password, user_id=user_id
+    )
+
+    assert user.id is not None
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user == user
+
+    # cleanup
+    await async_db.delete(user)
+    await async_db.commit()
+
+
+@pytest.mark.anyio
+async def test_create_user_set_full_name(async_db: AsyncSession) -> None:
+    email = random_email()
+    password = random_lower_string()
+
+    full_name = random_lower_string()
+
+    user = await crud.create_user(
+        db=async_db, email=email, password=password, full_name=full_name
+    )
+
+    assert user.full_name == full_name
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user == user
+
+    # cleanup
+    await async_db.delete(user)
+    await async_db.commit()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("full_name", (None, ""))
+async def test_create_user_set_full_name_empty(
+    async_db: AsyncSession, full_name: None | Literal[""]
+) -> None:
+    email = random_email()
+    password = random_lower_string()
+
+    user = await crud.create_user(
+        db=async_db, email=email, password=password, full_name=full_name
+    )
+
+    assert user.full_name is None
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user == user
+
+    # cleanup
+    await async_db.delete(user)
+    await async_db.commit()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("is_active", (True, False))
+async def test_create_user_set_is_active(
+    async_db: AsyncSession, is_active: bool
+) -> None:
+    email = random_email()
+    password = random_lower_string()
+
+    user = await crud.create_user(
+        db=async_db, email=email, password=password, is_active=is_active
+    )
+
+    assert user.is_active == is_active
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user == user
+
+    # cleanup
+    await async_db.delete(user)
+    await async_db.commit()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("is_superuser", (True, False))
+async def test_create_user_set_is_superuser(
+    async_db: AsyncSession, is_superuser: bool
+) -> None:
+    email = random_email()
+    password = random_lower_string()
+
+    user = await crud.create_user(
+        db=async_db, email=email, password=password, is_superuser=is_superuser
+    )
+
+    assert user.is_superuser == is_superuser
 
     # cleanup
     await async_db.delete(user)
@@ -158,7 +298,230 @@ async def test_get_user(
 
 
 @pytest.mark.anyio
-async def test_update_user(async_db: AsyncSession) -> None:
+async def test_update_user_returns_user(
+    async_db: AsyncSession, create_user: CreateUserProtocol
+) -> None:
+    user = await async_db.merge(create_user())
+
+    res = await crud.update_user(db=async_db, user=user)
+
+    assert user is res
+
+
+@pytest.mark.anyio
+async def test_update_user_no_updates(
+    async_db: AsyncSession, create_user: CreateUserProtocol
+) -> None:
+    user = await async_db.merge(create_user())
+
+    expected = user.model_dump()
+
+    res = await crud.update_user(db=async_db, user=user)
+
+    assert res.model_dump() == expected
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.model_dump() == expected
+
+
+@pytest.mark.anyio
+async def test_update_user_set_email(
+    async_db: AsyncSession, create_user: CreateUserProtocol
+) -> None:
+    user = await async_db.merge(create_user())
+    email = random_email()
+
+    res = await crud.update_user(db=async_db, user=user, email=email)
+
+    assert res.email == email
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.email == email
+
+
+@pytest.mark.anyio
+async def test_update_user_set_email_none(
+    async_db: AsyncSession, create_user: CreateUserProtocol
+) -> None:
+    """Tests whether email is not updated if ``None`` is provided as update."""
+    user = await async_db.merge(create_user())
+
+    expected = user.model_dump()
+
+    res = await crud.update_user(db=async_db, user=user, email=None)
+
+    assert res.model_dump() == expected
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.model_dump() == expected
+
+
+@pytest.mark.anyio
+async def test_update_user_set_password(
+    async_db: AsyncSession, create_user: CreateUserProtocol
+) -> None:
+    user = await async_db.merge(create_user())
+    password = random_lower_string()
+
+    res = await crud.update_user(db=async_db, user=user, password=password)
+
+    assert res.hashed_password == password
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.hashed_password == password
+
+
+@pytest.mark.anyio
+async def test_update_user_set_password_none(
+    async_db: AsyncSession, create_user: CreateUserProtocol
+) -> None:
+    """Test whether password is not updated if ``None`` is provided."""
+    user = await async_db.merge(create_user())
+    expected = user.model_dump()
+
+    res = await crud.update_user(db=async_db, user=user, password=None)
+
+    assert res.model_dump() == expected
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.model_dump() == expected
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("initial_name", (None, random_lower_string()))
+async def test_update_user_set_full_name(
+    async_db: AsyncSession, create_user: CreateUserProtocol, initial_name: str | None
+) -> None:
+    user = await async_db.merge(create_user(full_name=initial_name))
+    full_name = random_lower_string()
+
+    res = await crud.update_user(db=async_db, user=user, full_name=full_name)
+
+    assert res.full_name == full_name
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.full_name == full_name
+
+
+@pytest.mark.anyio
+async def test_update_user_remove_full_name(
+    async_db: AsyncSession, create_user: CreateUserProtocol
+) -> None:
+    user = await async_db.merge(create_user(full_name=random_lower_string()))
+    full_name = ""
+
+    res = await crud.update_user(db=async_db, user=user, full_name=full_name)
+
+    assert res.full_name is None
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.full_name is None
+
+
+@pytest.mark.anyio
+async def test_update_user_set_full_name_none(
+    async_db: AsyncSession, create_user: CreateUserProtocol
+) -> None:
+    user = await async_db.merge(create_user(full_name=random_lower_string()))
+
+    expected = user.model_dump()
+
+    res = await crud.update_user(db=async_db, user=user, full_name=None)
+
+    assert res.model_dump() == expected
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.model_dump() == expected
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("value", (True, False))
+@pytest.mark.parametrize("initial_value", (True, False))
+async def test_update_user_set_is_active(
+    async_db: AsyncSession,
+    create_user: CreateUserProtocol,
+    initial_value: bool,
+    value: bool,
+) -> None:
+    user = await async_db.merge(create_user(is_active=initial_value))
+    res = await crud.update_user(db=async_db, user=user, is_active=value)
+
+    assert res.is_active == value
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.is_active == value
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("initial_value", (True, False))
+async def test_update_user_set_is_active_none(
+    async_db: AsyncSession, create_user: CreateUserProtocol, initial_value: bool
+) -> None:
+    """Test whether is_active is not updated if ``None`` is provided."""
+    user = await async_db.merge(create_user(is_active=initial_value))
+    expected = user.model_dump()
+
+    res = await crud.update_user(db=async_db, user=user, is_active=None)
+
+    assert res.model_dump() == expected
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.model_dump() == expected
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("value", (True, False))
+@pytest.mark.parametrize("initial_value", (True, False))
+async def test_update_user_set_is_superuser(
+    async_db: AsyncSession,
+    create_user: CreateUserProtocol,
+    initial_value: bool,
+    value: bool,
+) -> None:
+    user = await async_db.merge(create_user(is_superuser=initial_value))
+
+    res = await crud.update_user(db=async_db, user=user, is_superuser=value)
+
+    assert res.is_superuser == value
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.is_superuser == value
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("initial_value", (True, False))
+async def test_update_user_set_is_superuser_none(
+    subtests: Subtests,
+    async_db: AsyncSession,
+    create_user: CreateUserProtocol,
+    initial_value: bool,
+) -> None:
+    """Test whether is_superuser is not updated if ``None`` is provided."""
+    user = await async_db.merge(create_user(is_superuser=initial_value))
+    expected = user.model_dump()
+
+    res = await crud.update_user(db=async_db, user=user, is_superuser=None)
+
+    assert res.model_dump() == expected
+
+    db_user = await async_db.get(User, user.id)
+    assert db_user
+    assert db_user.model_dump() == expected
+
+
+@pytest.mark.anyio
+async def test_update_user_data(async_db: AsyncSession) -> None:
     password = random_lower_string()
     email = random_email()
     user_in = UserCreate(email=email, password=password, is_superuser=True)
@@ -179,7 +542,7 @@ async def test_update_user(async_db: AsyncSession) -> None:
 
 
 @pytest.mark.anyio
-async def test_update_user_empty_data(async_db: AsyncSession) -> None:
+async def test_update_user_data_empty_data(async_db: AsyncSession) -> None:
     user_create = UserCreate(
         email=random_email(),
         password=random_lower_string(),
@@ -201,7 +564,7 @@ async def test_update_user_empty_data(async_db: AsyncSession) -> None:
 
 
 @pytest.mark.anyio
-async def test_update_user_remove_full_name(async_db: AsyncSession) -> None:
+async def test_update_user_data_remove_full_name(async_db: AsyncSession) -> None:
     user_create = UserCreate(
         email=random_email(),
         password=random_lower_string(),
@@ -225,7 +588,10 @@ async def test_update_user_remove_full_name(async_db: AsyncSession) -> None:
     (pytest.param(True, id="existing"), pytest.param(False, id="not existing")),
 )
 async def test_delete_user(
-    async_db: AsyncSession, create_user: CreateUserProtocol, existing: bool
+    async_db: AsyncSession,
+    async_db_2: AsyncSession,
+    create_user: CreateUserProtocol,
+    existing: bool,
 ) -> None:
     if existing:
         user_id = create_user().id
@@ -236,3 +602,23 @@ async def test_delete_user(
 
     res = await async_db.get(User, user_id)
     assert res is None
+
+    res = await async_db_2.get(User, user_id)
+    assert res is None, "Delete operation probably not committed properly."
+
+
+@pytest.mark.anyio
+async def test_delete_user_no_commit(
+    async_db: AsyncSession,
+    async_db_2: AsyncSession,
+    create_user: CreateUserProtocol,
+) -> None:
+    user = create_user()
+    await crud.delete_user_by_id(db=async_db, user_id=user.id, commit=False)
+
+    # use 2nd session to check whether "change" propagated or not.
+    res = await async_db_2.get(User, user.id)
+    assert res == user
+
+    # Rollback database, since otherwise the tests seeme to hold here,when not commiting changes.
+    await async_db.rollback()

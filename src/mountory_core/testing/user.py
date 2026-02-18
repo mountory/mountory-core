@@ -56,7 +56,7 @@ def create_default_user(
     if user_id is not None:
         kwargs["user_id"] = user_id
 
-    return User(email=email, hashed_password=password, full_name=full_name, **kwargs)
+    return User(email=email, hashed_password=password, full_name=full_name, **kwargs)  # ty:ignore[invalid-argument-type]
 
 
 @deprecated(

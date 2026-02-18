@@ -1,6 +1,6 @@
 from mountory_core.testing.utils import random_email, random_lower_string
 from pydantic import ValidationError
-from mountory_core.users.models import UserCreate, UserRegister, UserUpdate
+from mountory_core.users.models import UserCreate, UserUpdate
 import pytest
 
 
@@ -30,30 +30,6 @@ def test_user_create_defaults() -> None:
     assert create.full_name is None
 
 
-def test_user_register_email_required() -> None:
-    with pytest.raises(ValidationError):
-        _ = UserRegister(password=random_lower_string())  # type:ignore[call-arg] # ty:ignore[missing-argument]
-
-    # todo: maybe check content of exception
-
-
-def test_user_register_password_required() -> None:
-    with pytest.raises(ValidationError):
-        _ = UserRegister(email=random_email())  # type:ignore[call-arg]  # ty:ignore[missing-argument]
-
-    # todo: maybe check content of exception
-
-
-def test_user_register_defaults() -> None:
-    email = random_email()
-    password = random_lower_string()
-    register = UserRegister(email=email, password=password)
-
-    assert register.email == email
-    assert register.password == password
-    assert register.full_name is None
-
-
 def test_user_update_defaults() -> None:
     # this also tests whether all fields are optional
     update = UserUpdate()
@@ -80,9 +56,9 @@ def test_user_update_email_password_full_name() -> None:
 
 
 @pytest.mark.parametrize("email", ("testmail", "mail@mail", "mail@", "@mail.com"))
-@pytest.mark.parametrize("model", (UserCreate, UserRegister, UserUpdate))
+@pytest.mark.parametrize("model", (UserCreate, UserUpdate))
 def test_user_model_email_invalid(
-    model: type[UserCreate | UserRegister | UserUpdate], email: str
+    model: type[UserCreate | UserUpdate], email: str
 ) -> None:
     password = random_lower_string()
 
@@ -94,9 +70,9 @@ def test_user_model_email_invalid(
 
 
 @pytest.mark.parametrize("email", ("test@mail.com",))
-@pytest.mark.parametrize("model", (UserCreate, UserRegister, UserUpdate))
+@pytest.mark.parametrize("model", (UserCreate, UserUpdate))
 def test_user_model_email_valid(
-    model: type[UserCreate | UserRegister | UserUpdate], email: str
+    model: type[UserCreate | UserUpdate], email: str
 ) -> None:
     password = random_lower_string()
     user_model = model(email=email, password=password)
@@ -105,9 +81,9 @@ def test_user_model_email_valid(
 
 
 @pytest.mark.parametrize("length", range(10))
-@pytest.mark.parametrize("model", (UserCreate, UserRegister, UserUpdate))
+@pytest.mark.parametrize("model", (UserCreate, UserUpdate))
 def test_user_model_password_short(
-    model: type[UserCreate | UserRegister | UserUpdate], length: int
+    model: type[UserCreate | UserUpdate], length: int
 ) -> None:
     password = random_lower_string(length)
 
@@ -117,9 +93,9 @@ def test_user_model_password_short(
     # todo: maybe check content of exception
 
 
-@pytest.mark.parametrize("model", (UserCreate, UserRegister, UserUpdate))
+@pytest.mark.parametrize("model", (UserCreate, UserUpdate))
 def test_user_model_password_long(
-    model: type[UserCreate | UserRegister | UserUpdate],
+    model: type[UserCreate | UserUpdate],
 ) -> None:
     password = random_lower_string(256)
 
@@ -128,9 +104,9 @@ def test_user_model_password_long(
 
 
 @pytest.mark.parametrize("length", (10, 255))
-@pytest.mark.parametrize("model", (UserCreate, UserRegister, UserUpdate))
+@pytest.mark.parametrize("model", (UserCreate, UserUpdate))
 def test_user_model_password_valid(
-    model: type[UserCreate | UserRegister | UserUpdate], length: int
+    model: type[UserCreate | UserUpdate], length: int
 ) -> None:
     password = random_lower_string(length)
 
