@@ -20,123 +20,255 @@ from mountory_core.users.models import User
 from mountory_core.users.types import UserId
 
 
-@pytest.mark.parametrize("user_count", (0, 1, 10))
-def test_create_activity(
-    db: Session,
-    create_user: CreateUserProtocol,
-    create_location: CreateLocationProtocol,
-    user_count: int,
+@pytest.mark.parametrize("title", ("", None))
+def test_create_activity_no_title_raises(
+    db: Session, title: Literal[""] | None
 ) -> None:
-    location = create_location(commit=False)
-    users = [create_user(commit=False) for _ in range(user_count)]
-    db.commit()
+    with pytest.raises(ValueError):
+        _ = crud.create_activity(db=db, title=title)  # type:ignore[arg-type] # ty:ignore[invalid-argument-type]
 
-    activity_create = ActivityCreate(
-        title=random_lower_string(),
-        description=random_lower_string(),
-        duration=timedelta(minutes=5),
-        location_id=location.id,
-        user_ids={u.id for u in users},
-    )
 
-    activity = crud.create_activity(db=db, data=activity_create)
+def test_crate_activity_defaults(db: Session) -> None:
+    title = random_lower_string()
 
-    assert activity.title == activity_create.title
-    assert activity.description == activity_create.description
-    assert activity.duration == activity_create.duration
-    assert activity.location_id == location.id
-    assert activity.location == location
-    check_lists(activity.users, users)
+    activity = crud.create_activity(db=db, title=title)
+
+    assert activity.id is not None
+    assert activity.title == title
+    assert activity.description is None
+    assert activity.duration is None
+    assert activity.location_id is None
+    assert activity.location is None
+    assert activity.parent_id is None
+    assert activity.parent is None
+    assert activity.users == []
+    assert activity.transactions == []
+    assert activity.activities == []
 
     # cleanup
     db.delete(activity)
     db.commit()
 
 
-@pytest.mark.parametrize("user_count", (0, 1, 10))
-def test_create_activity_without_location(
+def test_create_activity_set_description(db: Session) -> None:
+    title = random_lower_string()
+    description = random_lower_string()
+
+    activity = crud.create_activity(db=db, title=title, description=description)
+    assert activity.description == description
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_set_description_none(db: Session) -> None:
+    title = random_lower_string()
+    description = None
+
+    activity = crud.create_activity(db=db, title=title, description=description)
+    assert activity.description == description
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_set_start_no_tz(db: Session) -> None:
+    title = random_lower_string()
+    start = datetime.now()
+
+    activity = crud.create_activity(db=db, title=title, start=start)
+    assert activity.start == start.replace(tzinfo=timezone.utc)
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+@pytest.mark.parametrize("offset", range(-12, 12))
+def test_create_activity_set_start_with_tz_offset(db: Session, offset: int) -> None:
+    title = random_lower_string()
+    start = datetime.now(timezone(timedelta(hours=offset)))
+
+    activity = crud.create_activity(db=db, title=title, start=start)
+    assert activity.start == start.astimezone(timezone.utc)
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_set_start_none(db: Session) -> None:
+    title = random_lower_string()
+    start = None
+
+    activity = crud.create_activity(db=db, title=title, start=start)
+    assert activity.start is None
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_set_duration(db: Session) -> None:
+    duration = timedelta(minutes=27)
+
+    activity = crud.create_activity(
+        db=db,
+        title=random_lower_string(),
+        duration=duration,
+    )
+    assert activity.duration == duration
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_set_duration_none(db: Session) -> None:
+    duration = None
+
+    activity = crud.create_activity(
+        db=db,
+        title=random_lower_string(),
+        duration=duration,
+    )
+    assert activity.duration is None
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_set_location_none(db: Session) -> None:
+    location = None
+
+    activity = crud.create_activity(
+        db=db, title=random_lower_string(), location=location
+    )
+
+    assert activity.location is None
+    assert activity.location_id is None
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_set_location(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    location = create_location()
+
+    activity = crud.create_activity(
+        db=db, title=random_lower_string(), location=location
+    )
+    assert activity.location == location
+    assert activity.location_id == location.id
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_set_location_id(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    location = create_location()
+
+    activity = crud.create_activity(
+        db=db, title=random_lower_string(), location=location.id
+    )
+    assert activity.location == location
+    assert activity.location_id == location.id
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_set_parent_none(db: Session) -> None:
+    parent = None
+
+    activity = crud.create_activity(db=db, title=random_lower_string(), parent=parent)
+
+    assert activity.parent is None
+    assert activity.parent_id is None
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_set_parent(
+    db: Session, create_activity: CreateActivityProtocol
+) -> None:
+    parent = create_activity()
+
+    activity = crud.create_activity(db=db, title=random_lower_string(), parent=parent)
+    assert activity.parent == parent
+    assert activity.parent_id == parent.id
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_set_parent_id(
+    db: Session, create_activity: CreateActivityProtocol
+) -> None:
+    parent = create_activity()
+
+    activity = crud.create_activity(
+        db=db, title=random_lower_string(), parent=parent.id
+    )
+    assert activity.parent == parent
+    assert activity.parent_id == parent.id
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+@pytest.mark.parametrize("user_count", (1, 10))
+def test_create_activity_set_users(
     db: Session, create_user: CreateUserProtocol, user_count: int
 ) -> None:
     users = [create_user(commit=False) for _ in range(user_count)]
     db.commit()
-    activity_create = ActivityCreate(
-        title=random_lower_string(),
-        description=random_lower_string(),
-        duration=timedelta(minutes=5),
-        user_ids={u.id for u in users},
+
+    activity = crud.create_activity(
+        db=db, title=random_lower_string(), users={u.id for u in users}
     )
 
-    activity = crud.create_activity(db=db, data=activity_create)
-
-    assert activity.title == activity_create.title
-    assert activity.description == activity_create.description
-    assert activity.duration == activity_create.duration
-    assert activity.location_id is None
-    assert activity.location is None
-    check_lists(activity.users, users)
+    assert activity.users == users
 
     # cleanup
     db.delete(activity)
     db.commit()
 
 
-def test_create_activity_without_users(
+@pytest.mark.parametrize("users", (set(), [], None))
+def test_create_activity_set_users_empty(
     db: Session,
-    create_location: CreateLocationProtocol,
+    users: set[LocationId] | list[LocationId] | None,
 ) -> None:
-    location = create_location(commit=False)
+    activity = crud.create_activity(db=db, title=random_lower_string(), users=users)
 
-    activity_create = ActivityCreate(
-        title=random_lower_string(),
-        description=random_lower_string(),
-        duration=timedelta(minutes=5),
-        location_id=location.id,
+    assert activity.users == []
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_set_activity_types(db: Session) -> None:
+    activity_type = ActivityType.RUNNING_JOGGING
+
+    activity = crud.create_activity(
+        db=db, title=random_lower_string(), types={activity_type}
     )
-    activity = crud.create_activity(db=db, data=activity_create)
-
-    assert activity.title == activity_create.title
-    assert activity.description == activity_create.description
-    assert activity.duration == activity_create.duration
-    assert activity.location_id == location.id
-    assert activity.location == location
-    assert activity.users == []
-
-    # cleanup
-    db.delete(activity)
-    db.commit()
-
-
-def test_create_activity_title_only(db: Session) -> None:
-    activity_create = ActivityCreate(title=random_lower_string())
-    activity = crud.create_activity(db=db, data=activity_create)
-
-    assert activity.title == activity_create.title
-    assert activity.description is None
-    assert activity.start is None
-    assert activity.duration is None
-    assert activity.location_id is None
-    assert activity.location is None
-    assert activity.users == []
-
-    # cleanup
-    db.delete(activity)
-    db.commit()
-
-
-@pytest.mark.parametrize("activity_type", ActivityType)
-def test_create_activity_with_activity_types(
-    db: Session, activity_type: ActivityType
-) -> None:
-    activity_create = ActivityCreate(title=random_lower_string(), types={activity_type})
-    activity = crud.create_activity(db=db, data=activity_create)
-
-    assert activity.title == activity_create.title
-    assert activity.description is None
-    assert activity.start is None
-    assert activity.duration is None
-    assert activity.location_id is None
-    assert activity.location is None
-    assert activity.users == []
     assert activity.types == {activity_type}
 
     # cleanup
@@ -144,15 +276,148 @@ def test_create_activity_with_activity_types(
     db.commit()
 
 
-def test_create_activity_start_with_timezone(db: Session) -> None:
-    start = datetime.now(UTC)
+@pytest.mark.parametrize("types", (set(), [], None))
+def test_create_activity_set_activity_types_empty(
+    db: Session, types: Collection[ActivityType] | None
+) -> None:
+    activity = crud.create_activity(db=db, title=random_lower_string(), types=types)
+    assert activity.types == set()
 
-    activity_create = ActivityCreate(title=random_lower_string(), start=start)
-    activity = crud.create_activity(db=db, data=activity_create)
+    # cleanup
+    db.delete(activity)
+    db.commit()
 
-    # assert activity.start.astimezone(UTC).timestamp() == start.timestamp()
-    assert activity.start is not None
-    assert activity.start.astimezone(UTC) == start
+
+def test_create_activity_data_defaults(db: Session) -> None:
+    data = ActivityCreate(title=random_lower_string())
+
+    activity = crud.create_activity(db=db, data=data)
+
+    assert activity.id is not None
+    assert activity.title == data.title
+    assert activity.description is None
+    assert activity.duration is None
+    assert activity.location_id is None
+    assert activity.location is None
+    assert activity.parent_id is None
+    assert activity.parent is None
+    assert activity.users == []
+    assert activity.transactions == []
+    assert activity.activities == []
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_data_set_description(db: Session) -> None:
+    data = ActivityCreate(
+        title=random_lower_string(), description=random_lower_string()
+    )
+
+    activity = crud.create_activity(db=db, data=data)
+    assert activity.description == data.description
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_data_set_start_no_tz(db: Session) -> None:
+    start = datetime.now()
+    data = ActivityCreate(title=random_lower_string(), start=start)
+
+    activity = crud.create_activity(db=db, data=data)
+    assert activity.start == start.replace(tzinfo=timezone.utc)
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_data_set_start_with_tz(db: Session) -> None:
+    offset = -10
+    start = datetime.now(tz=timezone(timedelta(hours=offset)))
+
+    data = ActivityCreate(title=random_lower_string(), start=start)
+    activity = crud.create_activity(db=db, data=data)
+
+    assert activity.start == start.astimezone(timezone.utc)
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_data_set_duration(db: Session) -> None:
+    duration = timedelta(minutes=5)
+
+    data = ActivityCreate(title=random_lower_string(), duration=duration)
+    activity = crud.create_activity(db=db, data=data)
+
+    assert activity.duration == duration
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_data_set_location(
+    db: Session, create_location: CreateLocationProtocol
+) -> None:
+    location = create_location()
+
+    data = ActivityCreate(title=random_lower_string(), location_id=location.id)
+    activity = crud.create_activity(db=db, data=data)
+    assert activity.location_id == location.id
+    assert activity.location == location
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+@pytest.mark.parametrize("user_count", (0, 1, 10))
+def test_create_activity_data_set_users(
+    db: Session, create_user: CreateUserProtocol, user_count: int
+) -> None:
+    users = [create_user(commit=False) for _ in range(user_count)]
+    db.commit()
+
+    data = ActivityCreate(
+        title=random_lower_string(),
+        user_ids={u.id for u in users},
+    )
+    activity = crud.create_activity(db=db, data=data)
+
+    assert activity.users == users
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_data_set_activity_types(db: Session) -> None:
+    activity_type = ActivityType.RUNNING_JOGGING
+    data = ActivityCreate(title=random_lower_string(), types={activity_type})
+
+    activity = crud.create_activity(db=db, data=data)
+    assert activity.types == {activity_type}
+
+    # cleanup
+    db.delete(activity)
+    db.commit()
+
+
+def test_create_activity_data_set_parent(
+    db: Session, create_activity: CreateActivityProtocol
+) -> None:
+    parent = create_activity()
+    data = ActivityCreate(title=random_lower_string(), parent_id=parent.id)
+
+    activity = crud.create_activity(db=db, data=data)
+    assert activity.parent_id == parent.id
+    assert activity.parent == parent
 
     # cleanup
     db.delete(activity)

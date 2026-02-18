@@ -22,37 +22,109 @@ from mountory_core.users.types import UserId
 from mountory_core.util import create_filter_in_with_none
 
 
+@overload
+@deprecated(
+    """
+    Passing values as single ``data`` object is deprecated.
+    Pass values as separate parameters instead.
+    """
+)
 def create_activity(
-    *, db: Session, data: ActivityCreate, commit: bool = True
+    db: Session,
+    *,
+    data: ActivityCreate,
+    commit: bool = True,
+) -> Activity: ...
+
+
+@overload
+def create_activity(
+    db: Session,
+    *,
+    title: str,
+    description: str | None = None,
+    start: datetime | None = None,
+    duration: timedelta | None = None,
+    location: Location | LocationId | None = None,
+    users: Collection[UserId] | None = None,
+    types: Collection[ActivityType] | None = None,
+    parent: Activity | ActivityId | None = None,
+    commit: bool = True,
 ) -> Activity:
     """
-    Creates an activity in the database based on the given `ActivityCreate` object.
-
-    Warning the `activity_crate.start` is expected to be timezone aware.
-    If no timezone is set, the value will be assumed to be in `UTC`.
+    Create new activity in the database.
+    If parameters are not provided or if they are passed as ``None`` are not set.
 
     :param db: Database session
-    :param data: ``ActivityCreate`` instance with data to create the activity with.
+    :param title: Title of the activity
+    :param description: Description of the activity. (Default: ``None``)
+    :param start: When the activity took place. (Default: ``None``)
+    :param duration: Duration of the activity. (Default: ``None``)
+    :param location: Location where the activity took place. (Default: ``None``)
+    :param users: Users participating in the activity. (Default: ``None``)
+    :param types: Activity types of the activity. (Default: ``None``)
+    :param parent: Parent activity. (Default: ``None``)
     :param commit: Whether to commit the database transaction. (Default: ``True``)
 
-    :return: Created ``Activity``
+    :return: Created ``Activiy`` instance.
     """
-    logger.info(f"create_activity, {data=}")
 
-    logger.debug("create_activity, create database object")
-    activity = Activity.model_validate(data.model_dump(exclude={"user_ids", "types"}))
 
-    if data.types:
+def create_activity(
+    db: Session,
+    data: ActivityCreate | None = None,
+    title: str | None = None,
+    description: str | None = None,
+    start: datetime | None = None,
+    duration: timedelta | None = None,
+    location: Location | LocationId | None = None,
+    users: Collection[UserId] | None = None,
+    types: Collection[ActivityType] | None = None,
+    parent: Activity | ActivityId | None = None,
+    commit: bool = True,
+) -> Activity:
+    if data is not None:
+        title = data.title
+        description = data.description
+        start = data.start
+        duration = data.duration
+        location = data.location_id
+        users = data.user_ids
+        types = data.types
+        parent = data.parent_id
+        # return _create_activity(db=db, data=data, commit=commit)
+
+    if title is None or len(title) == 0:
+        raise ValueError("Title is required")
+
+    activity = Activity(
+        title=title, description=description, start=start, duration=duration
+    )
+
+    if isinstance(location, Location):
+        activity.location = location
+    elif location is not None:
+        activity.location_id = location
+
+    if isinstance(parent, Activity):
+        activity.parent = parent
+    elif parent is not None:
+        activity.parent_id = parent
+
+    if types:
         logger.debug("create_activity, set activity types")
         activity.type_associations = [
             ActivityTypeAssociation(activity_type=activity_type)  # ty:ignore[missing-argument] setting ``activity_id`` will be handled by ActivityTypeAssociation
-            for activity_type in data.types
+            for activity_type in types
         ]
-    logger.debug(f"create_activity, add user associations user_ids={data.user_ids}")
-    for user_id in data.user_ids or ():
-        db.add(ActivityUserLink(user_id=user_id, activity_id=activity.id))
-    logger.debug("create_activity, add to database")
+    if users:
+        logger.debug(f"create_activity, add user associations user_ids={users}")
+        for user_id in users:
+            db.add(ActivityUserLink(user_id=user_id, activity_id=activity.id))
+        logger.debug("create_activity, add to database")
+
     db.add(activity)
+
     if commit:
         logger.debug("create_activity, commit transaction")
         db.commit()
