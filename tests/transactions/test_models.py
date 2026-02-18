@@ -1,3 +1,4 @@
+from mountory_core.transactions.types import TransactionCategory
 import uuid
 from datetime import datetime, timezone
 
@@ -263,16 +264,20 @@ def test_create_transaction_with_values(
     activity = create_activity(commit=False)
     location = create_location(commit=False)
     date = datetime.now()
-    values = {
-        "amount": 5003,
-        "category": "Other",
-        "date": date,
-        "description": random_lower_string(),
-        "note": random_lower_string(),
-        "activity": activity,
-        "location": location,
-    }
-    transaction = Transaction(**values)
+    amount = 5003
+    category = TransactionCategory.OTHER
+    description = random_lower_string()
+    note = random_lower_string()
+
+    transaction = Transaction(
+        amount=amount,
+        category=category,
+        date=date,
+        description=description,
+        note=note,
+        activity=activity,
+        location=location,
+    )
 
     db.add(transaction)
     db.commit()
@@ -282,12 +287,11 @@ def test_create_transaction_with_values(
     assert transaction.activity == activity
     assert transaction.location_id == location.id
     assert transaction.location == location
-    assert transaction.amount == values["amount"]
-    assert transaction.category == values["category"]
+    assert transaction.amount == amount
+    assert transaction.category == category
     assert transaction.date == date.replace(tzinfo=timezone.utc)
-    assert transaction.description == values["description"]
-    assert transaction.description == values["description"]
-    assert transaction.note == values["note"]
+    assert transaction.description == description
+    assert transaction.note == note
 
     # cleanup
     db.delete(transaction)

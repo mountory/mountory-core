@@ -49,7 +49,7 @@ class Transaction(SQLModel, table=True):
         default=None, sa_type=TZDateTime
     )
     amount: int | None = Field(default=None)
-    category: TransactionCategory | None = Field(index=True)
+    category: TransactionCategory | None = Field(index=True, default=None)
     description: Annotated[
         str | None,
         Field(default=None),

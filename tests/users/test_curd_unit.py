@@ -4,9 +4,10 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from mountory_core.testing.user import _create_random_user
 from mountory_core.testing.utils import random_email, random_lower_string
 from mountory_core.users import crud
-from mountory_core.users.models import UserCreate, User, UserUpdate
+from mountory_core.users.models import UserCreate, UserUpdate
 
 
 @pytest.mark.anyio
@@ -42,7 +43,7 @@ async def test_create_user_without_commit() -> None:
 @pytest.mark.anyio
 async def test_update_user_commit_default() -> None:
     db = AsyncMock(spec=AsyncSession)
-    user = User()
+    user = _create_random_user()
     data = UserUpdate(email=random_email())
 
     await crud.update_user(db=db, user=user, data=data)
@@ -53,7 +54,7 @@ async def test_update_user_commit_default() -> None:
 @pytest.mark.anyio
 async def test_update_user_commit() -> None:
     db = AsyncMock(spec=AsyncSession)
-    user = User()
+    user = _create_random_user()
     data = UserUpdate(email=random_email())
 
     await crud.update_user(db=db, user=user, data=data, commit=True)
@@ -64,7 +65,7 @@ async def test_update_user_commit() -> None:
 @pytest.mark.anyio
 async def test_update_user_no_commit() -> None:
     db = AsyncMock(spec=AsyncSession)
-    user = User()
+    user = _create_random_user()
     data = UserUpdate(email=random_email())
 
     await crud.update_user(db=db, user=user, data=data, commit=False)

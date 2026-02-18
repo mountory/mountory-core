@@ -45,7 +45,7 @@ def test_manufacturer_model_website_parse_as_none(
     model: type[ManufacturerCreate | ManufacturerUpdate],
     value: str | None,
 ) -> None:
-    base = model(website=value, name=random_lower_string())  # type:ignore[arg-type]
+    base = model(website=value, name=random_lower_string())  # type:ignore[arg-type]  # ty:ignore[invalid-argument-type]
 
     assert base.website is None
 

@@ -367,7 +367,7 @@ async def test_read_location_favorites(
         parent = create_location(commit=False)
         location.parent = parent
         location.activity_type_associations = [
-            LocationActivityTypeAssociation(activity_type=ActivityType.CLIMBING_ALPINE)
+            LocationActivityTypeAssociation(activity_type=ActivityType.CLIMBING_ALPINE)  # ty:ignore[missing-argument]  # ``location_id`` is set by sqlalchemy.
         ]
     # we need to commit the sync session since create_user and create_location are using it instead of the async_db
     db.commit()

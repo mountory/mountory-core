@@ -43,7 +43,7 @@ def create_location(
         f"create_location, set activity types, activity_types={data.activity_types}"
     )
     db_obj.activity_type_associations = [
-        LocationActivityTypeAssociation(activity_type=activity_type)
+        LocationActivityTypeAssociation(activity_type=activity_type)  # ty:ignore[missing-argument] setting ``location_id`` will be handled by sqlalchemy.
         for activity_type in data.activity_types
     ]
 
