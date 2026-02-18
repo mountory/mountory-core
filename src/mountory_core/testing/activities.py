@@ -105,8 +105,8 @@ def create_db_activity(
     )
     if types:
         activity.type_associations = [
-            ActivityTypeAssociation(activity_type=t)
-            for t in types  # ty:ignore[missing-argument]
+            ActivityTypeAssociation(activity_type=t)  # ty:ignore[missing-argument]
+            for t in types
         ]
     db.add(activity)
 
