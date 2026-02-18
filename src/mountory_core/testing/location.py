@@ -123,7 +123,7 @@ def create_random_location_favorite(
     db: Session | None = None,
     commit: bool = True,
 ) -> LocationUserFavorite:
-    favorite = LocationUserFavorite()
+    favorite = LocationUserFavorite()  # ty:ignore[missing-argument]
 
     if isinstance(user, User):
         favorite.user = user

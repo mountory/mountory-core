@@ -193,7 +193,7 @@ def test_update_location_data_commit_true() -> None:
     db = MagicMock(spec=Session)
 
     data = LocationUpdate(name=random_lower_string())
-    location = Location()
+    location = create_random_location()
 
     _ = crud.update_location(db=db, location=location, data=data, commit=True)
 

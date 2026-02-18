@@ -514,7 +514,7 @@ def test_update_transaction_set_all_none() -> None:
         activity_id=uuid.uuid4(),
         location_id=uuid.uuid4(),
         user_id=uuid.uuid4(),
-        data=datetime.now(),
+        date=datetime.now(),
         amount=100,
         category=TransactionCategory.OTHER,
         description=random_lower_string(),
