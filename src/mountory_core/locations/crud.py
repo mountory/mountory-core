@@ -1,3 +1,4 @@
+from mountory_core.common.parsing import empty_str_as_none
 from typing_extensions import deprecated
 from collections.abc import Collection
 from typing import Literal, overload
@@ -19,7 +20,7 @@ from mountory_core.locations.models import (
 )
 from mountory_core.locations.types import LocationId, LocationType
 from mountory_core.users.types import UserId
-from mountory_core.util import create_filter_in_with_none
+from mountory_core.common.crud import create_filter_in_with_none
 
 
 def _create_location(
@@ -50,10 +51,8 @@ def _create_location(
     :return: Created Location.
     """
 
-    if abbreviation == "":
-        abbreviation = None
-    if website == "":
-        website = None
+    abbreviation = empty_str_as_none(abbreviation)
+    website = empty_str_as_none(website)
 
     logger.debug("create_location, create object")
     location = Location(
@@ -242,13 +241,13 @@ def _update_location(
         data["name"] = name
 
     if abbreviation is not None:
-        data["abbreviation"] = None if abbreviation == "" else abbreviation
+        data["abbreviation"] = empty_str_as_none(abbreviation)
     if website is not None:
-        data["website"] = None if website == "" else website
+        data["website"] = empty_str_as_none(website)  # type:ignore[assignment]
     if location_type:
-        data["location_type"] = None if location_type == "" else location_type
+        data["location_type"] = empty_str_as_none(location_type)
     if parent_id is not None:
-        data["parent_id"] = None if parent_id == "" else parent_id
+        data["parent_id"] = empty_str_as_none(parent_id)
 
     logger.debug(f"update_location {location.id}, update location {data=}")
     location.sqlmodel_update(data)

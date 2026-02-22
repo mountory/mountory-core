@@ -1,11 +1,13 @@
 from mountory_core.locations.types import LocationId
-from mountory_core.types import DefaultIfEmptyStrValidator, AwareDateTimeField
+from mountory_core.common.types import AwareDateTimeField
+from mountory_core.common.validation import DefaultIfEmptyStrValidator
 from pydantic import StringConstraints, UUID4, Field
 import enum
 from datetime import UTC, datetime, timedelta
 from typing import TypedDict, Annotated, Any
 
 from sqlalchemy import DateTime, TypeDecorator, Dialect
+
 
 ActivityId = UUID4
 

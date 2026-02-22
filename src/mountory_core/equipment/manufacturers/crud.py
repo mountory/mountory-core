@@ -1,3 +1,4 @@
+from mountory_core.common.parsing import empty_str_as_none
 from typing import overload
 from typing_extensions import deprecated, Literal
 
@@ -28,9 +29,9 @@ async def _create_manufacturer(
     db: AsyncSession,
     *,
     name: str,
-    short_name: str | None = None,
-    description: str | None = None,
-    website: HttpUrl | None = None,
+    short_name: str | Literal[""] | None = None,
+    description: str | Literal[""] | None = None,
+    website: HttpUrl | Literal[""] | None = None,
     hidden: bool | None = None,
     id_: ManufacturerId | None = None,
     commit: bool = True,
@@ -53,12 +54,9 @@ async def _create_manufacturer(
     """
     logger.info(f"create_manufacturer {name}")
 
-    if short_name == "":
-        short_name = None
-    if description == "":
-        description = None
-    if website == "":
-        website = None
+    short_name = empty_str_as_none(short_name)
+    description = empty_str_as_none(description)
+    website = empty_str_as_none(website)
 
     logger.info(f"create_manufacturer {name}, create object")
     manufacturer = Manufacturer(
@@ -311,11 +309,11 @@ async def _update_manufacturer_by_id(
 
     data: dict[str, str | HttpUrl | bool | None] = {}
     if short_name is not None:
-        data["short_name"] = None if short_name == "" else short_name
+        data["short_name"] = empty_str_as_none(short_name)
     if description is not None:
-        data["description"] = None if description == "" else description
+        data["description"] = empty_str_as_none(description)
     if website is not None:
-        data["website"] = None if website == "" else website
+        data["website"] = empty_str_as_none(website)  # type:ignore[assignment]
 
     if name is not None:
         data["name"] = name

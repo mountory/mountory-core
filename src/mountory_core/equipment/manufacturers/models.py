@@ -13,7 +13,7 @@ from mountory_core.equipment.manufacturers.types import (
     OptionalManufacturerNameField,
     ManufacturerNameField,
 )
-from mountory_core.types import OptionalWebsiteField, OptionalStr
+from mountory_core.common.types import OptionalWebsiteField, OptionalStr
 from mountory_core.users.types import UserId
 
 

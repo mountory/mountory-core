@@ -1,3 +1,4 @@
+from mountory_core.common.parsing import empty_str_as_none
 from typing import overload, Literal
 from typing_extensions import deprecated
 
@@ -321,15 +322,15 @@ def _update_transaction(
     data: dict[str, datetime | TransactionCategory | str | int | None] = {}
 
     if amount is not None:
-        data["amount"] = None if amount == "" else amount
+        data["amount"] = empty_str_as_none(amount)
     if date is not None:
-        data["date"] = None if date == "" else date
+        data["date"] = empty_str_as_none(date)
     if category is not None:
-        data["category"] = None if category == "" else category
+        data["category"] = empty_str_as_none(category)
     if description is not None:
-        data["description"] = None if description == "" else description
+        data["description"] = empty_str_as_none(description)
     if note is not None:
-        data["note"] = None if note == "" else note
+        data["note"] = empty_str_as_none(note)
 
     logger.debug(f"Update transaction, update object data={data}")
     transaction.sqlmodel_update(data)

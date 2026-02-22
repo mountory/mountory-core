@@ -3,10 +3,12 @@ from typing import TypedDict, Annotated
 
 from pydantic import UUID4, Field, StringConstraints, HttpUrl
 
-from mountory_core.types import (
+from mountory_core.common.types import (
     OptionalStr,
-    DefaultIfNoneValidator,
+)
+from mountory_core.common.validation import (
     NoneIfEmptyStrValidator,
+    DefaultIfNoneValidator,
 )
 from mountory_core.users.types import UserId
 

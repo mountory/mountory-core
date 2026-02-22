@@ -1,7 +1,9 @@
+from typing import TypedDict
+from mountory_core.common.parsing import empty_str_as_none
 from typing_extensions import deprecated
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
-from typing import Literal, overload
+from typing import Literal, overload, NotRequired
 
 from sqlalchemy import distinct, insert
 from sqlmodel import Session, col, delete, func, select, update
@@ -19,7 +21,18 @@ from mountory_core.locations.models import Location
 from mountory_core.locations.types import LocationId
 from mountory_core.logging import logger
 from mountory_core.users.types import UserId
-from mountory_core.util import create_filter_in_with_none
+from mountory_core.common.crud import create_filter_in_with_none
+
+
+class UpdateActivityValues(TypedDict):
+    title: NotRequired[str]
+    description: NotRequired[str | None]
+    start: NotRequired[datetime | None]
+    duration: NotRequired[timedelta | None]
+    location_id: NotRequired[LocationId | None]
+    location: NotRequired[Location | None]
+    parent_id: NotRequired[ActivityId | None]
+    parent: NotRequired[Activity | None]
 
 
 @overload
@@ -410,33 +423,33 @@ def update_activity_by_id(
         users = data.user_ids
         types = data.types
 
-    data_: dict[str, ActivityId | LocationId | str | datetime | timedelta | None] = {}
+    values: UpdateActivityValues = {}
 
     if title is not None:
         if title == "":
             raise ValueError("Title cannot be empty")
-        data_["title"] = title
+        values["title"] = title
 
     if description is not None:
-        data_["description"] = None if description == "" else description
+        values["description"] = empty_str_as_none(description)
     if start is not None:
-        data_["start"] = None if start == "" else start
+        values["start"] = empty_str_as_none(start)
     if duration is not None:
-        data_["duration"] = None if duration == "" else duration
+        values["duration"] = empty_str_as_none(duration)
 
     if location is None:
         pass
     elif isinstance(location, Location):
-        data_["location_id"] = location.id
+        values["location_id"] = location.id
     else:
-        data_["location_id"] = None if location == "" else location
+        values["location_id"] = empty_str_as_none(location)
 
     if parent is None:
         pass
     elif isinstance(parent, Activity):
-        data_["parent_id"] = parent.id
+        values["parent_id"] = parent.id
     else:
-        data_["parent_id"] = None if parent == "" else parent
+        values["parent_id"] = empty_str_as_none(parent)
 
     if users is not None:
         logger.debug(f"update_activity_by_id, handle user_ids, {users=}")
@@ -462,10 +475,11 @@ def update_activity_by_id(
                     params=tuple({"activity_type": t} for t in types),
                 )
 
-    if not data_:
+    if values:
+        stmt = update(Activity).filter_by(id=activity_id).values(values)
+        db.exec(stmt)
+    elif not values and types is None and users is None:
         return
-    stmt = update(Activity).filter_by(id=activity_id).values(data_)
-    db.exec(stmt)
 
     if commit:
         logger.debug("update_activity_by_id, commit database transaction")

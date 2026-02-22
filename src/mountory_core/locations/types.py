@@ -4,11 +4,13 @@ from typing import NamedTuple, TypedDict, Annotated
 
 from pydantic import BaseModel, StringConstraints, Field
 
-from mountory_core.types import (
-    DefaultIfEmptyStrValidator,
+from mountory_core.common.types import (
     OptionalStr,
-    DefaultIfNoneValidator,
+)
+from mountory_core.common.validation import (
     NoneIfEmptyStrValidator,
+    DefaultIfEmptyStrValidator,
+    DefaultIfNoneValidator,
 )
 
 LocationId = UUID4

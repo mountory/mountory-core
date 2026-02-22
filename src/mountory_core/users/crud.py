@@ -1,3 +1,4 @@
+from mountory_core.common.parsing import empty_str_as_none
 from typing import overload, Literal
 from typing_extensions import deprecated
 
@@ -312,9 +313,7 @@ async def _update_user_new(
     if password is not None:
         user.hashed_password = get_password_hash(password)
     if full_name is not None:
-        if full_name == "":
-            full_name = None
-        user.full_name = full_name
+        user.full_name = empty_str_as_none(full_name)
     if is_active is not None:
         user.is_active = is_active
     if is_superuser is not None:

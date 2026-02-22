@@ -19,7 +19,7 @@ from mountory_core.locations.types import (
     OptionalLocationNameField,
     ParentPathDict,
 )
-from mountory_core.types import (
+from mountory_core.common.types import (
     OptionalWebsiteField,
 )
 from mountory_core.users.models import User

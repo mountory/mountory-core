@@ -1,8 +1,10 @@
 from mountory_core.transactions.types import TransactionCategory
-from mountory_core.types import (
+from mountory_core.common.types import (
     AwareDateTimeField,
-    DefaultIfNoneValidator,
+)
+from mountory_core.common.validation import (
     NoneIfEmptyStrValidator,
+    DefaultIfNoneValidator,
 )
 from typing import Annotated
 

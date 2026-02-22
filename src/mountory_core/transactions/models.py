@@ -10,7 +10,7 @@ from mountory_core.transactions.fields import (
 )
 from pydantic import StringConstraints, BaseModel, AwareDatetime
 from typing import Annotated
-from mountory_core.types import (
+from mountory_core.common.validation import (
     NoneIfEmptyStrValidator,
     DefaultIfNoneValidator,
     AsAwareDateTimeValidator,
