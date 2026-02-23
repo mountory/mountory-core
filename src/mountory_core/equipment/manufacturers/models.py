@@ -1,19 +1,20 @@
 import uuid
 from typing import Annotated
 
-from pydantic import BaseModel
+from pydantic import UUID4, BaseModel
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
+from mountory_core.common.types import OptionalStr, OptionalWebsiteField
 from mountory_core.equipment.manufacturers.types import (
     ManufacturerAccessRole,
-    ManufacturerId,
-    ManufacturerShortNameField,
     ManufacturerDescriptionField,
+    ManufacturerId,
+    ManufacturerNameField,
+    ManufacturerShortNameField,
     ManufacturerWebsiteField,
     OptionalManufacturerNameField,
-    ManufacturerNameField,
 )
-from mountory_core.common.types import OptionalWebsiteField, OptionalStr
 from mountory_core.users.types import UserId
 
 
@@ -51,16 +52,25 @@ class Manufacturer(SQLModel, table=True):
 
 class ManufacturerAccess(SQLModel, table=True):
     __tablename__ = "equipment_manufacturer_access"
+    __table_args__ = (
+        UniqueConstraint(
+            "manufacturer_id",
+            "user_id",
+            name="uix_equipment_manufacturer_access_manufacturer_user",
+        ),
+    )
 
+    id: UUID4 | None = Field(default_factory=uuid.uuid4, primary_key=True)
     manufacturer_id: Annotated[
-        ManufacturerId,
+        ManufacturerId | None,
         Field(
-            primary_key=True,
+            nullable=True,
+            index=True,
             foreign_key="equipment_manufacturer.id",
             ondelete="CASCADE",
         ),
-    ]
+    ] = None
     user_id: Annotated[
-        UserId, Field(primary_key=True, foreign_key="user.id", ondelete="CASCADE")
+        UserId, Field(index=True, foreign_key="user.id", ondelete="CASCADE")
     ]
     role: ManufacturerAccessRole = Field(default=ManufacturerAccessRole.SHARED)

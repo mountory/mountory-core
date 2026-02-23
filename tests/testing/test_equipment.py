@@ -130,9 +130,10 @@ async def test_create_db_manufacturer_with_user_accesses(
             assert users is not None
             assert len(users) == 1
             user_id = users[0]
-            assert access == ManufacturerAccess(
-                manufacturer_id=manufacturer.id, user_id=user_id, role=role
-            )
+
+            assert access.manufacturer_id == manufacturer.id
+            assert access.user_id == user_id
+            assert access.role == role
 
     ## cleanup
     stmt_del = delete(ManufacturerAccess).filter_by(manufacturer_id=manufacturer.id)

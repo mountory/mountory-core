@@ -1,3 +1,5 @@
+from sqlalchemy import Insert
+from sqlalchemy.sql.dml import Update
 from mountory_core.common.parsing import empty_str_as_none
 from typing import overload
 from typing_extensions import deprecated, Literal
@@ -6,7 +8,7 @@ from pydantic import HttpUrl
 from collections.abc import Collection, Sequence
 
 from sqlalchemy import BinaryExpression, ColumnElement, delete, func, update
-from sqlmodel import and_, col, or_, select
+from sqlmodel import and_, col, or_, select, insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from mountory_core.logging import logger
@@ -31,7 +33,7 @@ async def _create_manufacturer(
     name: str,
     short_name: str | Literal[""] | None = None,
     description: str | Literal[""] | None = None,
-    website: HttpUrl | Literal[""] | None = None,
+    website: HttpUrl | str | Literal[""] | None = None,
     hidden: bool | None = None,
     id_: ManufacturerId | None = None,
     commit: bool = True,
@@ -63,7 +65,7 @@ async def _create_manufacturer(
         name=name,
         short_name=short_name,
         description=description,
-        website=website,
+        website=HttpUrl(website) if website else None,
     )
     # This is only in case the wrapping function passes ``None`` as the default.
     # Can be removed if the old function is removed and the wrapper does not exist anymore.
@@ -108,7 +110,7 @@ async def create_manufacturer(
     name: str,
     short_name: str | None = None,
     description: str | None = None,
-    website: HttpUrl | None = None,
+    website: HttpUrl | str | None = None,
     hidden: bool | None = None,
     id_: ManufacturerId | None = None,
     commit: bool = True,
@@ -122,7 +124,7 @@ async def create_manufacturer(
     name: str | None = None,
     short_name: str | None = None,
     description: str | None = None,
-    website: HttpUrl | None = None,
+    website: HttpUrl | str | None = None,
     hidden: bool | None = None,
     id_: ManufacturerId | None = None,
     commit: bool = True,
@@ -419,39 +421,56 @@ async def delete_manufacturer_by_id(
 async def set_manufacturer_access(
     *,
     db: AsyncSession,
-    manufacturer_id: ManufacturerId,
+    manufacturer_id: ManufacturerId | None,
     user_id: UserId,
     role: ManufacturerAccessRole,
     commit: bool = True,
 ) -> None:
     """
-    Grant access role to user for a manufacturer.
+    Grant access role to user for a specific manufacturer or manufactuers in general.
 
     NOTE: Existing roles will be overwritten.
 
+    When providing a ``manufactuer_id`` the access will be set for the given manufacturer:
+
+    - ``"shared"``: Read manufacturer if it is hidden, otherwise nothing special
+    - ``"editor"``: ``shared`` + allowed to share
+    - ``"admin"``: ``editor`` + allowed to add/ remove editors
+    - ``"owner"``: ``admin`` + allowed to delete manufacturer, and add/ remove admins
+
+    Providing ``manufacturer_id=None`` will set access rights to manufacturers in general:
+
+    - ``"shared"``: See and access public manufacturers. (No difference to no existing access rights.)
+    - ``"editor"``: ``shared`` +  Create public and hidden manufacturers.
+    - ``"admin"``: ``editor`` + Add / remove editors
+    - ``"owner"``: ``admin`` + Add/ remove editors, see, edit, and remove all existing manufacturers.
+
+
     :param db: Database session.
     :param manufacturer_id: ``ManufacturerId`` of the manufacturer to set the access for.
+        Set to ``None`` if you want to set generall manufacturer access rights.
     :param user_id: ``UserId`` of the user to set the access for.
     :param role: ``ManufacturerAccessRole`` to grant the given user for the given manufacturer.
     :param commit: Whether to commit the database transaction. (Default: ``True``)
 
     :return: ``None``
     """
-    from sqlalchemy.dialects.postgresql import insert
-
     logger.info(f"set_manufacturer_access, {manufacturer_id=}, {user_id=}, {role=}")
 
-    stmt = (
-        insert(ManufacturerAccess)
-        .values(user_id=user_id, manufacturer_id=manufacturer_id, role=role)
-        .on_conflict_do_update(
-            index_elements=[
-                col(ManufacturerAccess.user_id),
-                col(ManufacturerAccess.manufacturer_id),
-            ],
-            set_={"role": role},
-        )
+    existing = await read_manufacturer_user_access(
+        db=db, manufacturer_id=manufacturer_id, user_id=user_id
     )
+    stmt: Update | Insert
+    if existing is None:
+        stmt = insert(ManufacturerAccess).values(
+            user_id=user_id, manufacturer_id=manufacturer_id, role=role
+        )
+    else:
+        stmt = (
+            update(ManufacturerAccess)
+            .filter_by(user_id=user_id, manufacturer_id=manufacturer_id)
+            .values(role=role)
+        )
     await db.exec(stmt)
     if commit:
         logger.debug("set_manufacturer_access, commit transaction")
@@ -471,15 +490,16 @@ async def set_manufacturer_accesses(
     :return: ``None``
     """
     logger.info(f"set_manufacturer_accesses, {accesses=}")
-    for access in accesses:
-        await set_manufacturer_access(db=db, **access, commit=False)
-    logger.info("set_manufacturer_accesses, commit transaction")
+    async with db.begin_nested():
+        for access in accesses:
+            await set_manufacturer_access(db=db, **access, commit=False)
+        logger.info("set_manufacturer_accesses, commit transaction")
     if commit:
         await db.commit()
 
 
 async def read_manufacturer_user_access(
-    *, db: AsyncSession, manufacturer_id: ManufacturerId, user_id: UserId
+    *, db: AsyncSession, manufacturer_id: ManufacturerId | None, user_id: UserId
 ) -> ManufacturerAccessRole | None:
     """
     Get access role of a given user for a given manufacturer.
@@ -503,7 +523,7 @@ async def read_manufacturer_user_access(
 
 
 async def read_manufacturer_user_accesses(
-    *, db: AsyncSession, manufacturer_id: ManufacturerId
+    *, db: AsyncSession, manufacturer_id: ManufacturerId | None
 ) -> list[tuple[ManufacturerAccessRole, User]]:
     """
     Get all user accesses for a given manufacturer.
@@ -526,7 +546,7 @@ async def read_manufacturer_user_accesses(
 async def remove_manufacturer_access_rights(
     *,
     db: AsyncSession,
-    manufacturer_id: ManufacturerId,
+    manufacturer_id: ManufacturerId | None,
     user_id: UserId,
     commit: bool = True,
 ) -> None:
@@ -548,7 +568,7 @@ async def remove_manufacturer_access_rights(
 
 
 async def remove_manufacturer_accesses(
-    *, db: AsyncSession, manufacturer_id: ManufacturerId, commit: bool = True
+    *, db: AsyncSession, manufacturer_id: ManufacturerId | None, commit: bool = True
 ) -> None:
     """
     Delete all access rights for a given manufacturer.

@@ -7,6 +7,8 @@ We're mainly testing "control flow" where the result of the actual action is out
 For example, whether ``db.commit`` is called, when the database transaction should be commited.
 """
 
+from pydantic import HttpUrl
+
 from typing import Literal
 
 import uuid
@@ -23,7 +25,7 @@ from mountory_core.equipment.manufacturers.types import (
 )
 
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from mountory_core.equipment.manufacturers import crud
 from mountory_core.testing.utils import random_lower_string, random_http_url
@@ -165,12 +167,23 @@ async def test_create_manufacturer_set_description_parsing_none(
 
 
 @pytest.mark.anyio
-async def test_create_manufacturer_set_website() -> None:
+async def test_create_manufacturer_set_website_str() -> None:
     db = AsyncMock(spec=AsyncSession)
     name = random_lower_string()
     website = random_http_url()
 
-    manufacturer = await crud.create_manufacturer(db=db, name=name, website=website)  # type: ignore[call-overload] # ty:ignore[invalid-argument-type]
+    manufacturer = await crud.create_manufacturer(db=db, name=name, website=website)
+
+    assert str(manufacturer.website) == website
+
+
+@pytest.mark.anyio
+async def test_create_manufacturer_set_website_url() -> None:
+    db = AsyncMock(spec=AsyncSession)
+    name = random_lower_string()
+    website = HttpUrl(random_http_url())
+
+    manufacturer = await crud.create_manufacturer(db=db, name=name, website=website)
 
     assert manufacturer.website == website
 
@@ -183,7 +196,7 @@ async def test_create_manufacturer_set_website_parsing_none(
     db = AsyncMock(spec=AsyncSession)
     name = random_lower_string()
 
-    manufacturer = await crud.create_manufacturer(db=db, name=name, website=value)  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    manufacturer = await crud.create_manufacturer(db=db, name=name, website=value)
 
     assert manufacturer.website is None
 
@@ -308,53 +321,65 @@ async def test_update_manufacturer_update_name_empty() -> None:
 
 @pytest.mark.anyio
 async def test_set_manufacturer_access_commit_default() -> None:
-    db = AsyncMock(spec=AsyncSession)
+    db = MagicMock(spec=AsyncSession)
     manufacturer_id = uuid.uuid4()
     user_id = uuid.uuid4()
     access_role = ManufacturerAccessRole.OWNER
 
-    await crud.set_manufacturer_access(
-        db=db,
-        manufacturer_id=manufacturer_id,
-        user_id=user_id,
-        role=access_role,
-    )
+    with patch(
+        "mountory_core.equipment.manufacturers.crud.read_manufacturer_user_access",
+        return_value=None,
+    ):
+        await crud.set_manufacturer_access(
+            db=db,
+            manufacturer_id=manufacturer_id,
+            user_id=user_id,
+            role=access_role,
+        )
 
     db.commit.assert_called_once()
 
 
 @pytest.mark.anyio
 async def test_set_manufacturer_access_commit_true() -> None:
-    db = AsyncMock(spec=AsyncSession)
+    db = MagicMock(spec=AsyncSession)
     manufacturer_id = uuid.uuid4()
     user_id = uuid.uuid4()
     access_role = ManufacturerAccessRole.OWNER
 
-    await crud.set_manufacturer_access(
-        db=db,
-        manufacturer_id=manufacturer_id,
-        user_id=user_id,
-        role=access_role,
-        commit=True,
-    )
+    with patch(
+        "mountory_core.equipment.manufacturers.crud.read_manufacturer_user_access",
+        return_value=None,
+    ):
+        await crud.set_manufacturer_access(
+            db=db,
+            manufacturer_id=manufacturer_id,
+            user_id=user_id,
+            role=access_role,
+            commit=True,
+        )
 
     db.commit.assert_called_once()
 
 
 @pytest.mark.anyio
 async def test_set_manufacturer_access_commit_false() -> None:
-    db = AsyncMock(spec=AsyncSession)
+    db = MagicMock(spec=AsyncSession)
     manufacturer_id = uuid.uuid4()
     user_id = uuid.uuid4()
     access_role = ManufacturerAccessRole.OWNER
 
-    await crud.set_manufacturer_access(
-        db=db,
-        manufacturer_id=manufacturer_id,
-        user_id=user_id,
-        role=access_role,
-        commit=False,
-    )
+    with patch(
+        "mountory_core.equipment.manufacturers.crud.read_manufacturer_user_access",
+        return_value=None,
+    ):
+        await crud.set_manufacturer_access(
+            db=db,
+            manufacturer_id=manufacturer_id,
+            user_id=user_id,
+            role=access_role,
+            commit=False,
+        )
 
     db.commit.assert_not_called()
 
@@ -363,7 +388,7 @@ async def test_set_manufacturer_access_commit_false() -> None:
 async def test_set_manufacturer_accesses_commit_default() -> None:
     accesses: list[ManufacturerAccessDict] = []
 
-    db = AsyncMock(spec=AsyncSession)
+    db = MagicMock(spec=AsyncSession)
 
     await crud.set_manufacturer_accesses(db=db, accesses=accesses)
 
@@ -374,7 +399,7 @@ async def test_set_manufacturer_accesses_commit_default() -> None:
 async def test_set_manufacturer_accesses_commit_true() -> None:
     accesses: list[ManufacturerAccessDict] = []
 
-    db = AsyncMock(spec=AsyncSession)
+    db = MagicMock(spec=AsyncSession)
 
     await crud.set_manufacturer_accesses(db=db, accesses=accesses, commit=True)
 
@@ -385,7 +410,7 @@ async def test_set_manufacturer_accesses_commit_true() -> None:
 async def test_set_manufacturer_accesses_commit_false() -> None:
     accesses: list[ManufacturerAccessDict] = []
 
-    db = AsyncMock(spec=AsyncSession)
+    db = MagicMock(spec=AsyncSession)
 
     await crud.set_manufacturer_accesses(db=db, accesses=accesses, commit=False)
 
@@ -394,7 +419,7 @@ async def test_set_manufacturer_accesses_commit_false() -> None:
 
 @pytest.mark.anyio
 async def test_delete_manufacturer_commit_default() -> None:
-    db = AsyncMock(spec=AsyncSession)
+    db = MagicMock(spec=AsyncSession)
     manufacturer_id = uuid.uuid4()
 
     await crud.delete_manufacturer_by_id(db=db, manufacturer_id=manufacturer_id)
@@ -404,7 +429,7 @@ async def test_delete_manufacturer_commit_default() -> None:
 
 @pytest.mark.anyio
 async def test_delete_manufacturer_commit_true() -> None:
-    db = AsyncMock(spec=AsyncSession)
+    db = MagicMock(spec=AsyncSession)
     manufacturer_id = uuid.uuid4()
 
     await crud.delete_manufacturer_by_id(
@@ -416,7 +441,7 @@ async def test_delete_manufacturer_commit_true() -> None:
 
 @pytest.mark.anyio
 async def test_delete_manufacturer_commit_false() -> None:
-    db = AsyncMock(spec=AsyncSession)
+    db = MagicMock(spec=AsyncSession)
     manufacturer_id = uuid.uuid4()
 
     await crud.delete_manufacturer_by_id(
@@ -428,7 +453,7 @@ async def test_delete_manufacturer_commit_false() -> None:
 
 @pytest.mark.anyio
 async def test_remove_manufacturer_access_right_commit_default() -> None:
-    db = AsyncMock(spec=AsyncSession, execute=AsyncMock())
+    db = MagicMock(spec=AsyncSession, execute=AsyncMock())
     manufacturer_id = uuid.uuid4()
     user_id = uuid.uuid4()
 
@@ -441,7 +466,7 @@ async def test_remove_manufacturer_access_right_commit_default() -> None:
 
 @pytest.mark.anyio
 async def test_remove_manufacturer_access_right_commit_true() -> None:
-    db = AsyncMock(spec=AsyncSession, execute=AsyncMock())
+    db = MagicMock(spec=AsyncSession, execute=AsyncMock())
     manufacturer_id = uuid.uuid4()
     user_id = uuid.uuid4()
 
@@ -454,7 +479,7 @@ async def test_remove_manufacturer_access_right_commit_true() -> None:
 
 @pytest.mark.anyio
 async def test_remove_manufacturer_access_right_commit_false() -> None:
-    db = AsyncMock(spec=AsyncSession, execute=AsyncMock())
+    db = MagicMock(spec=AsyncSession, execute=AsyncMock())
     manufacturer_id = uuid.uuid4()
     user_id = uuid.uuid4()
 
@@ -467,7 +492,7 @@ async def test_remove_manufacturer_access_right_commit_false() -> None:
 
 @pytest.mark.anyio
 async def test_remove_manufacturer_accesses_commit_default() -> None:
-    db = AsyncMock(spec=AsyncSession, execute=AsyncMock())
+    db = MagicMock(spec=AsyncSession, execute=AsyncMock())
     manufacturer_id = uuid.uuid4()
 
     await crud.remove_manufacturer_accesses(db=db, manufacturer_id=manufacturer_id)
@@ -477,7 +502,7 @@ async def test_remove_manufacturer_accesses_commit_default() -> None:
 
 @pytest.mark.anyio
 async def test_remove_manufacturer_accesses_commit_true() -> None:
-    db = AsyncMock(spec=AsyncSession, execute=AsyncMock())
+    db = MagicMock(spec=AsyncSession, execute=AsyncMock())
     manufacturer_id = uuid.uuid4()
 
     await crud.remove_manufacturer_accesses(
@@ -489,7 +514,7 @@ async def test_remove_manufacturer_accesses_commit_true() -> None:
 
 @pytest.mark.anyio
 async def test_remove_manufacturer_accesses_commit_false() -> None:
-    db = AsyncMock(spec=AsyncSession, execute=AsyncMock())
+    db = MagicMock(spec=AsyncSession, execute=AsyncMock())
     manufacturer_id = uuid.uuid4()
 
     await crud.remove_manufacturer_accesses(

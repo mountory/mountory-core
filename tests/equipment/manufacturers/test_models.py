@@ -108,24 +108,52 @@ def test_manufacturer_defaults() -> None:
 
 
 def test_manufacturer_access_defaults() -> None:
-    manufacturer = create_rndm_manufacturer()
     user = create_default_user()
 
-    access = ManufacturerAccess.model_validate(
-        {"manufacturer_id": manufacturer.id, "user_id": user.id}
-    )
-    assert access.manufacturer_id == manufacturer.id
+    access = ManufacturerAccess(user_id=user.id)
     assert access.user_id == user.id
     assert access.role == ManufacturerAccessRole.SHARED
 
 
+def test_manufacturer_access_set_manufacturer() -> None:
+    manufacturer = create_rndm_manufacturer()
+    user = create_default_user()
+
+    access = ManufacturerAccess(manufacturer_id=manufacturer.id, user_id=user.id)
+    assert access.manufacturer_id == manufacturer.id
+
+
+@pytest.mark.parametrize("role", ManufacturerAccessRole)
+def test_manufacturer_access_set_role(role: ManufacturerAccessRole) -> None:
+    user = create_default_user()
+
+    access = ManufacturerAccess(user_id=user.id, role=role)
+    assert access.role == role
+
+
 @pytest.mark.anyio
-async def test_manufacturer_access_with_db(
+async def test_manufacturer_access_db_defaults(
+    async_db: AsyncSession,
+    create_user: CreateUserProtocol,
+) -> None:
+    user = create_user()
+    access = ManufacturerAccess(user_id=user.id)
+    async_db.add(access)
+    await async_db.commit()
+    await async_db.refresh(access)
+
+    assert access.id is not None
+    assert access.manufacturer_id is None
+    assert access.user_id == user.id
+
+
+@pytest.mark.anyio
+async def test_manufacturer_access_db_set_manufacturer(
     async_db: AsyncSession,
     create_user: CreateUserProtocol,
     create_manufacturer: CreateManufacturerProtocol,
 ) -> None:
-    manufacturer = await create_manufacturer()
+    manufacturer = await create_manufacturer(commit=False)
     user = create_user()
 
     access = ManufacturerAccess(manufacturer_id=manufacturer.id, user_id=user.id)
@@ -135,4 +163,20 @@ async def test_manufacturer_access_with_db(
 
     assert access.manufacturer_id == manufacturer.id
     assert access.user_id == user.id
-    assert access.role == ManufacturerAccessRole.SHARED
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("role", ManufacturerAccessRole)
+async def test_manufacturer_access_db_set_role(
+    async_db: AsyncSession,
+    create_user: CreateUserProtocol,
+    role: ManufacturerAccessRole,
+) -> None:
+    user = create_user()
+
+    access = ManufacturerAccess(user_id=user.id, role=role)
+    async_db.add(access)
+    await async_db.commit()
+    await async_db.refresh(access)
+
+    assert access.role == role

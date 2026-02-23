@@ -141,9 +141,7 @@ async def test_create_manufacturer_set_website(async_db: AsyncSession) -> None:
     website = random_http_url()
 
     manufacturer = await crud.create_manufacturer(
-        db=async_db,
-        name=name,
-        website=website,  # type: ignore[call-overload]  # ty:ignore[invalid-argument-type]
+        db=async_db, name=name, website=website
     )
 
     assert str(manufacturer.website) == website
@@ -164,11 +162,7 @@ async def test_create_manufacturer_set_short_website_none(
 ) -> None:
     name = random_lower_string()
 
-    manufacturer = await crud.create_manufacturer(
-        db=async_db,
-        name=name,
-        website=value,  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
-    )
+    manufacturer = await crud.create_manufacturer(db=async_db, name=name, website=value)
 
     assert manufacturer.website is None
 
@@ -988,8 +982,125 @@ async def test_delete_manufacturer_by_id(
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("role", ManufacturerAccessRole)
+async def test_set_manufacturer_access_for_manufacturer_set_role(
+    async_db: AsyncSession,
+    create_user: CreateUserProtocol,
+    create_manufacturer: CreateManufacturerProtocol,
+    role: ManufacturerAccessRole,
+) -> None:
+    user = create_user()
+    existing = await create_manufacturer()
+
+    await crud.set_manufacturer_access(
+        db=async_db, manufacturer_id=existing.id, user_id=user.id, role=role
+    )
+
+    stmt = select(ManufacturerAccess).filter_by(
+        user_id=user.id, manufacturer_id=existing.id, role=role
+    )
+    assert (await async_db.exec(stmt)).one_or_none() is not None
+
+    # cleanup
+    await async_db.exec(
+        delete(ManufacturerAccess).filter_by(
+            user_id=user.id, manufacturer_id=existing.id, role=role
+        )
+    )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("role", ManufacturerAccessRole)
+async def test_set_manufacturer_access_for_manufacturer_upsert_existing_role(
+    async_db: AsyncSession,
+    create_user: CreateUserProtocol,
+    create_manufacturer: CreateManufacturerProtocol,
+    role: ManufacturerAccessRole,
+) -> None:
+    user = create_user()
+    existing = await create_manufacturer(
+        user_access={ManufacturerAccessRole.SHARED: [user.id]}
+    )
+
+    await crud.set_manufacturer_access(
+        db=async_db, manufacturer_id=existing.id, user_id=user.id, role=role
+    )
+
+    stmt = select(ManufacturerAccess).filter_by(
+        user_id=user.id, manufacturer_id=existing.id, role=role
+    )
+    assert (await async_db.exec(stmt)).one_or_none() is not None
+
+    # cleanup
+    await async_db.exec(
+        delete(ManufacturerAccess).filter_by(
+            user_id=user.id, manufacturer_id=existing.id, role=role
+        )
+    )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("role", ManufacturerAccessRole)
+async def test_set_manufacturer_access_general_set_role(
+    async_db: AsyncSession,
+    create_user: CreateUserProtocol,
+    role: ManufacturerAccessRole,
+) -> None:
+    user = create_user()
+
+    manufacturer_id = None
+
+    await crud.set_manufacturer_access(
+        db=async_db, manufacturer_id=manufacturer_id, user_id=user.id, role=role
+    )
+
+    stmt = select(ManufacturerAccess).filter_by(
+        user_id=user.id, manufacturer_id=manufacturer_id, role=role
+    )
+    assert (await async_db.exec(stmt)).one_or_none() is not None
+
+    # cleanup
+    await async_db.exec(
+        delete(ManufacturerAccess).filter_by(
+            user_id=user.id, manufacturer_id=manufacturer_id, role=role
+        )
+    )
+    await async_db.commit()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("role", ManufacturerAccessRole)
+async def test_set_manufacturer_access_general_upsert_existing_role(
+    async_db: AsyncSession,
+    create_user: CreateUserProtocol,
+    role: ManufacturerAccessRole,
+) -> None:
+    user = create_user()
+    async_db.add(ManufacturerAccess(user_id=user.id, manufacturer_id=None))
+    await async_db.commit()
+
+    manufacturer_id = None
+    await crud.set_manufacturer_access(
+        db=async_db, manufacturer_id=manufacturer_id, user_id=user.id, role=role
+    )
+
+    stmt = select(ManufacturerAccess).filter_by(
+        user_id=user.id, manufacturer_id=manufacturer_id, role=role
+    )
+    assert (await async_db.exec(stmt)).one_or_none() is not None
+
+    # cleanup
+    await async_db.exec(
+        delete(ManufacturerAccess).filter_by(
+            user_id=user.id, manufacturer_id=manufacturer_id, role=role
+        )
+    )
+    await async_db.commit()
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize("access_role", ManufacturerAccessRole)
-async def test_set_manufacturer_access(
+async def test_set_manufacturer_accesses_single(
     async_db: AsyncSession,
     create_user: CreateUserProtocol,
     create_manufacturer: CreateManufacturerProtocol,
@@ -1026,7 +1137,7 @@ async def test_set_manufacturer_access(
         ManufacturerAccessRole.EDITOR,
     ),
 )
-async def test_set_manufacturer_access_upsert_existing(
+async def test_set_manufacturer_accesses_single_upsert_existing(
     async_db: AsyncSession,
     create_user: CreateUserProtocol,
     create_manufacturer: CreateManufacturerProtocol,

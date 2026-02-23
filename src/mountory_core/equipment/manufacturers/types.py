@@ -16,15 +16,39 @@ ManufacturerId = UUID4
 
 
 class ManufacturerAccessRole(enum.StrEnum):
+    """Manufacturer access role
+
+    When used for a specific manufacturer:
+
+    - ``"shared"``: Read manufacturer if it is hidden, otherwise nothing special
+    - ``"editor"``: ``shared`` + allowed to share
+    - ``"admin"``: ``editor`` + allowed to add/ remove editors
+    - ``"owner"``: ``admin`` + allowed to delete manufacturer, and add/ remove admins
+
+    When used for manufacturers in general:
+
+    - ``"shared"``: See and access public manufacturers. (No difference to no existing access rights.)
+    - ``"editor"``: ``shared`` +  Create public and hidden manufacturers.
+    - ``"admin"``: ``editor`` + Add / remove editors
+    - ``"owner"``: ``admin`` + Add/ remove editors, see, edit, and remove all existing manufacturers.
+    """
+
     OWNER = "owner"  # admin + allowed to delete manufacturer, and add/ remove admins
+    """``ManufactuerAccessRole.ADMIN`` + allowed to delete manufacturer, and add/ remove admins"""
+
     ADMIN = "admin"  # editor + allowed to add/ remove editors
-    EDITOR = "editor"  # shared + allowed to edit the manufacture
+    """``ManufacturerAccessRole.EDITOR`` + allowed to add/ remove editors"""
+
+    EDITOR = "editor"  # shared + allowed to edit and share the manufacture
+    """``ManufacturerAccessRole.SHARED`` + allowed to share"""
+
     SHARED = "shared"  # read manufacturer if it is hidden otherwise nothing special
+    """Read manufacturer if it is hidden, otherwise nothing special"""
 
 
 class ManufacturerAccessDict(TypedDict):
     user_id: UserId
-    manufacturer_id: ManufacturerId
+    manufacturer_id: ManufacturerId | None
     role: ManufacturerAccessRole
 
 
