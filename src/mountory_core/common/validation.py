@@ -1,4 +1,7 @@
-from mountory_core.common.parsing import parse_str_none_if_empty, parse_aware_datetime
+from mountory_core.common.parsing import (
+    parse_aware_datetime,
+    empty_str_as_none,
+)
 from pydantic import BeforeValidator
 from pydantic_core import PydanticUseDefault
 
@@ -26,7 +29,7 @@ def default_if_none[T](value: T) -> T:
     return value
 
 
-NoneIfEmptyStrValidator = BeforeValidator(parse_str_none_if_empty)
+NoneIfEmptyStrValidator = BeforeValidator(empty_str_as_none)
 """``BeforeValidator`` converting emtpy string to ``None``."""
 
 
