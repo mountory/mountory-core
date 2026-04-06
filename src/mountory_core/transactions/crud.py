@@ -307,17 +307,17 @@ def _update_transaction(
     if isinstance(activity, Activity):
         transaction.activity = activity
     elif activity is not None:
-        transaction.activity_id = None if activity == "" else activity  # type: ignore[assignment]
+        transaction.activity_id = None if activity == "" else activity
 
     if isinstance(location, Location):
         transaction.location = location
     elif location is not None:
-        transaction.location_id = None if location == "" else location  # type: ignore[assignment]
+        transaction.location_id = None if location == "" else location
 
     if isinstance(user, User):
         transaction.user = user
     elif user is not None:
-        transaction.user_id = None if user == "" else user  # type: ignore[assignment]
+        transaction.user_id = None if user == "" else user
 
     data: dict[str, datetime | TransactionCategory | str | int | None] = {}
 
