@@ -1,16 +1,16 @@
-from mountory_core.common.parsing import empty_str_as_none
-from typing import overload, Literal
-from typing_extensions import deprecated
+from typing import Literal, overload
 
 from pydantic import EmailStr
 from sqlalchemy import delete, func
 from sqlmodel import Session, col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from typing_extensions import deprecated
 
+from mountory_core.common.parsing import empty_str_as_none
+from mountory_core.logging import logger
 from mountory_core.security import get_password_hash, verify_password
 from mountory_core.users.models import User, UserCreate, UserUpdate
-from mountory_core.users.types import UserId, PasswordStr, UserFullNameStr
-from mountory_core.logging import logger
+from mountory_core.users.types import PasswordStr, UserFullNameStr, UserId
 
 
 async def _create_user_old(

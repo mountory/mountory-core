@@ -1,10 +1,10 @@
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from typing import Protocol
-from typing_extensions import deprecated
 
 from sqlalchemy import delete
 from sqlmodel import Session, col
+from typing_extensions import deprecated
 
 from mountory_core.security import get_password_hash
 from mountory_core.testing.utils import random_email, random_lower_string

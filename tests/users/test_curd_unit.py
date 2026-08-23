@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from mountory_core.testing.user import create_default_user
 from mountory_core.testing.utils import random_email, random_lower_string
 from mountory_core.users import crud
-from mountory_core.users.models import UserCreate, UserUpdate, User
+from mountory_core.users.models import User, UserCreate, UserUpdate
 
 
 @pytest.mark.anyio

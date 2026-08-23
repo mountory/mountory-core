@@ -1,21 +1,19 @@
+import uuid
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Literal
 
-from mountory_core.testing.user import CreateUserProtocol
-import uuid
-from datetime import datetime, timezone, timedelta
-
 import pytest
+from sqlmodel import Session, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from mountory_core.activities.types import ActivityId
 from mountory_core.testing.activities import CreateActivityProtocol
 from mountory_core.testing.location import CreateLocationProtocol
 from mountory_core.testing.transactions import CreateTransactionProtocol
-from mountory_core.testing.utils import random_lower_string, check_lists
+from mountory_core.testing.user import CreateUserProtocol
+from mountory_core.testing.utils import check_lists, random_lower_string
 from mountory_core.transactions import crud
 from mountory_core.transactions.models import Transaction, TransactionCreate
-from sqlmodel import Session, select
-from sqlmodel.ext.asyncio.session import AsyncSession
-
 from mountory_core.transactions.types import TransactionCategory
 from mountory_core.users.types import UserId
 
@@ -87,7 +85,7 @@ def test_create_transaction_data_with_values(db: Session) -> None:
     create = TransactionCreate(
         amount=135326,
         category=TransactionCategory.OTHER,
-        date=datetime.now(),
+        date=datetime.now(tz=UTC),
         description=random_lower_string(),
         note=random_lower_string(),
     )
@@ -224,8 +222,8 @@ def test_create_transaction_set_user(
 
 
 def test_create_transaction_set_date_not_tz(db: Session) -> None:
-    date = datetime.now()
-    expected = date.replace(tzinfo=timezone.utc)
+    date = datetime.now(tz=UTC)
+    expected = date.replace(tzinfo=UTC)
 
     transaction = crud.create_transaction(db=db, date=date)
     assert transaction.date == expected
@@ -238,7 +236,7 @@ def test_create_transaction_set_date_not_tz(db: Session) -> None:
 def test_create_transaction_set_date_with_tz(db: Session) -> None:
     date = datetime.now(timezone(timedelta(hours=13)))
 
-    expected = date.astimezone(timezone.utc)
+    expected = date.astimezone(UTC)
 
     transaction = crud.create_transaction(db=db, date=date)
     assert transaction.date == expected
@@ -433,7 +431,7 @@ def test_update_transaction_no_updates(
     db: Session, create_transaction: CreateTransactionProtocol
 ) -> None:
     existing = create_transaction(
-        date=datetime.now(),
+        date=datetime.now(tz=UTC),
         amount=100,
         category=TransactionCategory.OTHER,
         description=random_lower_string(),
@@ -450,7 +448,7 @@ def test_update_transaction_set_all_none(
     db: Session, create_transaction: CreateTransactionProtocol
 ) -> None:
     existing = create_transaction(
-        date=datetime.now(),
+        date=datetime.now(tz=UTC),
         amount=100,
         category=TransactionCategory.OTHER,
         description=random_lower_string(),
@@ -618,9 +616,9 @@ def test_update_transaction_set_date_no_tzinfo(
     db: Session,
     create_transaction: CreateTransactionProtocol,
 ) -> None:
-    existing = create_transaction(date=datetime.now())
-    date = datetime(2020, 1, 1)
-    expected = date.replace(tzinfo=timezone.utc)
+    existing = create_transaction(date=datetime.now(tz=UTC))
+    date = datetime(2020, 1, 1)  # noqa: DTZ001
+    expected = date.replace(tzinfo=UTC)
 
     transaction = crud.update_transaction(db=db, transaction=existing, date=date)
     assert transaction == existing
@@ -633,9 +631,9 @@ def test_update_transaction_set_date_with_tzinfo(
     create_transaction: CreateTransactionProtocol,
     offest: int,
 ) -> None:
-    existing = create_transaction(date=datetime.now())
+    existing = create_transaction(date=datetime.now(tz=UTC))
     date = datetime(2020, 1, 1, tzinfo=timezone(offset=timedelta(hours=offest)))
-    expected = date.astimezone(timezone.utc)
+    expected = date.astimezone(UTC)
 
     transaction = crud.update_transaction(db=db, transaction=existing, date=date)
     assert transaction == existing

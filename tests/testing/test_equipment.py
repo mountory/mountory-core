@@ -1,8 +1,10 @@
-from collections.abc import Sequence
-from typing import Mapping
+from collections.abc import Mapping, Sequence
 
-from mountory_core.users.types import UserId
 import pytest
+from pydantic import HttpUrl
+from sqlmodel import delete, select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
 from mountory_core.equipment.manufacturers.models import (
     Manufacturer,
     ManufacturerAccess,
@@ -15,9 +17,7 @@ from mountory_core.testing.equipment import (
 )
 from mountory_core.testing.user import CreateUserProtocol
 from mountory_core.testing.utils import random_http_url, random_lower_string
-from pydantic import HttpUrl
-from sqlmodel import delete, select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from mountory_core.users.types import UserId
 
 
 def test_create_rndm_manufacturer_defaults() -> None:

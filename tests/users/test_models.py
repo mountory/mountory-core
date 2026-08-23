@@ -1,7 +1,8 @@
-from mountory_core.testing.utils import random_email, random_lower_string
-from pydantic import ValidationError
-from mountory_core.users.models import UserCreate, UserUpdate
 import pytest
+from pydantic import ValidationError
+
+from mountory_core.testing.utils import random_email, random_lower_string
+from mountory_core.users.models import UserCreate, UserUpdate
 
 
 def test_user_create_email_required() -> None:

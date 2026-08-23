@@ -1,5 +1,3 @@
-from mountory_core.common.parsing import empty_str_as_none
-from typing_extensions import deprecated
 from collections.abc import Collection
 from typing import Literal, overload
 
@@ -8,9 +6,11 @@ from sqlalchemy import func, insert
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, col, delete, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
+from typing_extensions import deprecated
 
 from mountory_core.activities.types import ActivityType
-from mountory_core.logging import logger
+from mountory_core.common.crud import create_filter_in_with_none
+from mountory_core.common.parsing import empty_str_as_none
 from mountory_core.locations.models import (
     Location,
     LocationActivityTypeAssociation,
@@ -19,8 +19,8 @@ from mountory_core.locations.models import (
     LocationUserFavorite,
 )
 from mountory_core.locations.types import LocationId, LocationType
+from mountory_core.logging import logger
 from mountory_core.users.types import UserId
-from mountory_core.common.crud import create_filter_in_with_none
 
 
 def _create_location(

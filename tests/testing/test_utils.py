@@ -2,7 +2,7 @@ from typing import Literal
 
 import pytest
 
-from mountory_core.testing.utils import random_url, random_http_url
+from mountory_core.testing.utils import random_http_url, random_url
 
 
 def test_random_url_defaults_to_http() -> None:

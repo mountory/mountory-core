@@ -1,7 +1,7 @@
-from pydantic import TypeAdapter
-from datetime import datetime, timezone
-from typing import Literal, Any
+from datetime import UTC, datetime
+from typing import Any, Literal
 
+from pydantic import TypeAdapter
 
 _datetime_adapter = TypeAdapter(datetime)
 _str_adapter = TypeAdapter(str)
@@ -44,5 +44,5 @@ def parse_aware_datetime[T](value: Any) -> datetime:
         parsed = _datetime_adapter.validate_python(value)
 
     if not parsed.tzinfo or parsed.tzinfo.utcoffset(parsed) is None:
-        return parsed.replace(tzinfo=timezone.utc)
+        return parsed.replace(tzinfo=UTC)
     return parsed

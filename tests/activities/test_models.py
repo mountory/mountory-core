@@ -2,17 +2,18 @@ from datetime import UTC, datetime, timedelta, timezone
 from typing import Literal
 
 import pytest
+from sqlmodel import Session, col, select
+
 from mountory_core.activities.models import (
     Activity,
-    ActivityUserLink,
     ActivityCreate,
     ActivityUpdate,
+    ActivityUserLink,
 )
 from mountory_core.testing.location import CreateLocationProtocol
 from mountory_core.testing.user import CreateUserProtocol
 from mountory_core.testing.utils import random_lower_string
 from mountory_core.transactions.models import Transaction
-from sqlmodel import Session, col, select
 
 
 def test_activity_creat_title_required() -> None:
@@ -54,18 +55,18 @@ def test_activity_model_start_parse_int(
     )
 
     assert isinstance(activity_model.start, datetime)
-    assert activity_model.start == datetime(1970, 1, 1, tzinfo=timezone.utc)
+    assert activity_model.start == datetime(1970, 1, 1, tzinfo=UTC)
 
 
 @pytest.mark.parametrize("model", (ActivityCreate, ActivityUpdate))
 def test_activity_model_start_parse_unaware_datetime(
     model: type[ActivityCreate | ActivityUpdate],
 ) -> None:
-    dt = datetime.now()
+    dt = datetime.now()  # noqa: DTZ005
 
     activity_model = model(start=dt, title=random_lower_string())
 
-    assert activity_model.start == dt.replace(tzinfo=timezone.utc)
+    assert activity_model.start == dt.replace(tzinfo=UTC)
 
 
 def test_activity_update_defaults() -> None:
@@ -180,7 +181,7 @@ def test_activity_user_link_adds_user_to_activity(
 
 
 def test_activity_start_without_timezone_returns_as_utc(db: Session) -> None:
-    start = datetime.now()
+    start = datetime.now()  # noqa: DTZ005
 
     activity = Activity(title=random_lower_string(), start=start)
     db.add(activity)

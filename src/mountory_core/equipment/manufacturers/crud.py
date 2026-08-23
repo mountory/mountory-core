@@ -1,17 +1,14 @@
-from sqlalchemy import Insert
-from sqlalchemy.sql.dml import Update
-from mountory_core.common.parsing import empty_str_as_none
-from typing import overload
-from typing_extensions import deprecated, Literal
+from collections.abc import Collection, Sequence
+from typing import Literal, overload
 
 from pydantic import HttpUrl
-from collections.abc import Collection, Sequence
-
-from sqlalchemy import BinaryExpression, ColumnElement, delete, func, update
-from sqlmodel import and_, col, or_, select, insert
+from sqlalchemy import BinaryExpression, ColumnElement, Insert, delete, func, update
+from sqlalchemy.sql.dml import Update
+from sqlmodel import and_, col, insert, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from typing_extensions import deprecated
 
-from mountory_core.logging import logger
+from mountory_core.common.parsing import empty_str_as_none
 from mountory_core.equipment.manufacturers.models import (
     Manufacturer,
     ManufacturerAccess,
@@ -23,6 +20,7 @@ from mountory_core.equipment.manufacturers.types import (
     ManufacturerAccessRole,
     ManufacturerId,
 )
+from mountory_core.logging import logger
 from mountory_core.users.models import User
 from mountory_core.users.types import UserId
 

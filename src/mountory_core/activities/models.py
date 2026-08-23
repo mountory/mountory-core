@@ -26,7 +26,6 @@ from mountory_core.transactions.utils import calc_transactions_total
 from mountory_core.users.models import User
 from mountory_core.users.types import UserId
 
-
 # Database Models:
 
 

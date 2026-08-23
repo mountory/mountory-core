@@ -17,10 +17,10 @@ from mountory_core.testing.equipment import (
     create_manufacturer_context,
 )
 from mountory_core.testing.location import (
+    CreateLocationFavoriteProtocol,
     CreateLocationProtocol,
     create_location_context,
     create_location_favorite_context,
-    CreateLocationFavoriteProtocol,
 )
 from mountory_core.testing.transactions import (
     CreateTransactionProtocol,
@@ -97,7 +97,7 @@ async def async_engine() -> AsyncGenerator[AsyncEngine, None]:
 @pytest.fixture(scope="module")
 def db(
     engine: Engine,
-    disable_password_hashing: Generator[None, None, None],  # noqa: ARG001
+    disable_password_hashing: Generator[None, None, None],
 ) -> Generator[Session, None, None]:
     """
     Fixture to get a synchronous database session.
@@ -107,7 +107,7 @@ def db(
 
     try:
         SQLModel.metadata.create_all(bind=engine)
-    except Exception:
+    except Exception:  # noqa: BLE001
         pytest.skip("Database not available")
     with Session(engine) as session:
         yield session
@@ -116,7 +116,7 @@ def db(
 @pytest.fixture(scope="module")
 async def async_db(
     async_engine: AsyncEngine,
-    disable_password_hashing: Generator[None, None, None],  # noqa: ARG001
+    disable_password_hashing: Generator[None, None, None],
 ) -> AsyncGenerator[AsyncSession, None]:
     """
     Fixture to get an asynchronous database session.
@@ -128,14 +128,14 @@ async def async_db(
         try:
             await session.exec(select(1))
             yield session
-        except Exception:
+        except Exception:  # noqa: BLE001
             pytest.skip("Database not available")
 
 
 @pytest.fixture(scope="module")
 async def async_db_2(
     async_engine: AsyncEngine,
-    disable_password_hashing: Generator[None, None, None],  # noqa: ARG001
+    disable_password_hashing: Generator[None, None, None],
 ) -> AsyncGenerator[AsyncSession, None]:
     """
     Fixture to get an asynchronous database session.
@@ -149,7 +149,7 @@ async def async_db_2(
         try:
             await session.exec(select(1))
             yield session
-        except Exception:
+        except Exception:  # noqa: BLE001
             pytest.skip("Database not available")
 
 

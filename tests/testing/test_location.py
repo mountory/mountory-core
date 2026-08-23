@@ -1,21 +1,21 @@
-from mountory_core.testing.user import CreateUserProtocol
-from unittest.mock import MagicMock
 import uuid
+from unittest.mock import MagicMock
 
 import pytest
 from sqlmodel import Session
 
-from mountory_core.locations.types import LocationType
-from mountory_core.testing.utils import (
-    random_lower_string,
-    random_http_url,
-    random_email,
-)
 from mountory_core.locations.models import Location
+from mountory_core.locations.types import LocationType
 from mountory_core.testing.location import (
+    CreateLocationProtocol,
     create_random_location,
     create_random_location_favorite,
-    CreateLocationProtocol,
+)
+from mountory_core.testing.user import CreateUserProtocol
+from mountory_core.testing.utils import (
+    random_email,
+    random_http_url,
+    random_lower_string,
 )
 from mountory_core.users.models import User
 

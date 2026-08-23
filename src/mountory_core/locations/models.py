@@ -6,6 +6,9 @@ from sqlalchemy import Column, Enum
 from sqlmodel import Field, Relationship, SQLModel
 
 from mountory_core.activities.types import ActivityType
+from mountory_core.common.types import (
+    OptionalWebsiteField,
+)
 from mountory_core.locations.types import (
     LOCATION_ABBREVIATION_MAX_LENGTH,
     LOCATION_ABBREVIATION_MIN_LENGTH,
@@ -18,9 +21,6 @@ from mountory_core.locations.types import (
     LocationTypeField,
     OptionalLocationNameField,
     ParentPathDict,
-)
-from mountory_core.common.types import (
-    OptionalWebsiteField,
 )
 from mountory_core.users.models import User
 from mountory_core.users.types import UserId

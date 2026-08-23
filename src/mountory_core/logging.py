@@ -1,7 +1,7 @@
 import logging
 
 logger = logging.getLogger("mountory-core")
-logger.setLevel(logging.WARN)
+logger.setLevel(logging.WARNING)
 
 # create console handler and set level to debug
 ch = logging.StreamHandler()

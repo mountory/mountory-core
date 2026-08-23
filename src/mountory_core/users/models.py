@@ -1,18 +1,18 @@
 import uuid
 from typing import Annotated
 
-from pydantic import EmailStr, BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlmodel import Field, SQLModel
 
 from mountory_core.users.types import (
-    UserId,
-    EmailField,
-    OptionalFullNameField,
-    PasswordField,
-    OptionalEmailField,
-    OptionalPasswordField,
-    PASSWORD_MIN_LENGTH,
     PASSWORD_MAX_LENGTH,
+    PASSWORD_MIN_LENGTH,
+    EmailField,
+    OptionalEmailField,
+    OptionalFullNameField,
+    OptionalPasswordField,
+    PasswordField,
+    UserId,
 )
 
 

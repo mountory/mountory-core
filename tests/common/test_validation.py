@@ -1,7 +1,9 @@
 from typing import Any
-from mountory_core.common.validation import default_if_empty_str, default_if_none
+
 import pytest
 from pydantic_core import PydanticUseDefault
+
+from mountory_core.common.validation import default_if_empty_str, default_if_none
 
 
 def test_default_if_empty_str_as_default() -> None:

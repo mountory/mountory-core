@@ -1,21 +1,22 @@
-from pydantic.dataclasses import dataclass
 import uuid
+from collections.abc import Collection
 from datetime import UTC, datetime, timedelta, timezone
-from typing import Collection, Literal
+from typing import Literal
 
 import pytest
+from pydantic.dataclasses import dataclass
+from sqlmodel import Session, col, or_, select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
 from mountory_core.activities import crud
 from mountory_core.activities.models import Activity, ActivityCreate, ActivityUpdate
-from mountory_core.activities.types import ActivityType, ActivityId
+from mountory_core.activities.types import ActivityId, ActivityType
 from mountory_core.locations.models import Location
 from mountory_core.locations.types import LocationId
 from mountory_core.testing.activities import CreateActivityProtocol
 from mountory_core.testing.location import CreateLocationProtocol
 from mountory_core.testing.user import CreateUserProtocol
 from mountory_core.testing.utils import check_lists, random_lower_string
-from sqlmodel import Session, col, or_, select
-from sqlmodel.ext.asyncio.session import AsyncSession
-
 from mountory_core.users.models import User
 from mountory_core.users.types import UserId
 
@@ -76,10 +77,10 @@ def test_create_activity_set_description_none(db: Session) -> None:
 
 def test_create_activity_set_start_no_tz(db: Session) -> None:
     title = random_lower_string()
-    start = datetime.now()
+    start = datetime.now()  # noqa: DTZ005
 
     activity = crud.create_activity(db=db, title=title, start=start)
-    assert activity.start == start.replace(tzinfo=timezone.utc)
+    assert activity.start == start.replace(tzinfo=UTC)
 
     # cleanup
     db.delete(activity)
@@ -92,7 +93,7 @@ def test_create_activity_set_start_with_tz_offset(db: Session, offset: int) -> N
     start = datetime.now(timezone(timedelta(hours=offset)))
 
     activity = crud.create_activity(db=db, title=title, start=start)
-    assert activity.start == start.astimezone(timezone.utc)
+    assert activity.start == start.astimezone(UTC)
 
     # cleanup
     db.delete(activity)
@@ -324,11 +325,11 @@ def test_create_activity_data_set_description(db: Session) -> None:
 
 
 def test_create_activity_data_set_start_no_tz(db: Session) -> None:
-    start = datetime.now()
+    start = datetime.now()  # noqa: DTZ005
     data = ActivityCreate(title=random_lower_string(), start=start)
 
     activity = crud.create_activity(db=db, data=data)
-    assert activity.start == start.replace(tzinfo=timezone.utc)
+    assert activity.start == start.replace(tzinfo=UTC)
 
     # cleanup
     db.delete(activity)
@@ -342,7 +343,7 @@ def test_create_activity_data_set_start_with_tz(db: Session) -> None:
     data = ActivityCreate(title=random_lower_string(), start=start)
     activity = crud.create_activity(db=db, data=data)
 
-    assert activity.start == start.astimezone(timezone.utc)
+    assert activity.start == start.astimezone(UTC)
 
     # cleanup
     db.delete(activity)
@@ -831,13 +832,13 @@ def test_update_activity(
     update = ActivityUpdate(
         title=random_lower_string(),
         description=random_lower_string(),
-        start=datetime.now(timezone.utc),
+        start=datetime.now(UTC),
         duration=timedelta(minutes=10),
         location_id=location.id,
         user_ids={u.id for u in users},
         parent_id=parent.id,
     )
-    update.start = datetime.now()
+    update.start = datetime.now(tz=UTC)
 
     crud.update_activity_by_id(db=db, activity_id=existing.id, data=update)
 
@@ -924,8 +925,8 @@ def test_update_activity_by_id_set_start_no_tzinfo(
     create_activity: CreateActivityProtocol,
 ) -> None:
     existing = create_activity()
-    start = datetime(2022, 5, 12, 23, 4)
-    expected = start.replace(tzinfo=timezone.utc)
+    start = datetime(2022, 5, 12, 23, 4)  # noqa: DTZ001
+    expected = start.replace(tzinfo=UTC)
 
     crud.update_activity_by_id(db=db, activity_id=existing.id, start=start)
     assert existing.start == expected
@@ -941,7 +942,7 @@ def test_update_activity_by_id_set_start(
     start = datetime(
         2022, 5, 12, 23, 4, tzinfo=timezone(offset=timedelta(hours=offset))
     )
-    expected = start.astimezone(timezone.utc)
+    expected = start.astimezone(UTC)
 
     crud.update_activity_by_id(db=db, activity_id=existing.id, start=start)
     assert existing.start == expected

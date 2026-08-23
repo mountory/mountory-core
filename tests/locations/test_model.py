@@ -1,15 +1,16 @@
-from mountory_core.activities.types import ActivityType
 from typing import Literal
 
-from pydantic import ValidationError
 import pytest
-from mountory_core.locations.types import LocationType
+from pydantic import ValidationError
+
+from mountory_core.activities.types import ActivityType
 from mountory_core.locations.models import (
-    LocationCreate,
-    LocationUpdate,
     Location,
     LocationActivityTypeAssociation,
+    LocationCreate,
+    LocationUpdate,
 )
+from mountory_core.locations.types import LocationType
 from mountory_core.testing.utils import random_lower_string
 
 

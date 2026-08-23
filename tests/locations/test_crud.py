@@ -1,10 +1,11 @@
-from dataclasses import dataclass
-
 import uuid
+from dataclasses import dataclass
 from typing import Literal
 
 import pytest
 from pydantic import HttpUrl
+from sqlmodel import Session, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from mountory_core.activities.types import ActivityType
 from mountory_core.locations import crud
@@ -17,9 +18,9 @@ from mountory_core.locations.models import (
 )
 from mountory_core.locations.types import LocationType
 from mountory_core.testing.location import (
+    CreateLocationFavoriteProtocol,
     CreateLocationProtocol,
     create_random_location,
-    CreateLocationFavoriteProtocol,
 )
 from mountory_core.testing.user import CreateUserProtocol
 from mountory_core.testing.utils import (
@@ -27,8 +28,6 @@ from mountory_core.testing.utils import (
     random_http_url,
     random_lower_string,
 )
-from sqlmodel import Session, select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 def test_create_location(db: Session) -> None:

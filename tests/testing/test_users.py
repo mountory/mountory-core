@@ -1,3 +1,6 @@
+from sqlalchemy import delete, func
+from sqlmodel import Session, select
+
 from mountory_core.testing.user import (
     create_default_user,
     create_random_user,
@@ -6,8 +9,6 @@ from mountory_core.testing.user import (
 )
 from mountory_core.testing.utils import random_email, random_lower_string
 from mountory_core.users.models import User
-from sqlalchemy import delete, func
-from sqlmodel import Session, select
 
 
 def test__create_random_user_defaults() -> None:

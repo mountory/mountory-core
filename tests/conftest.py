@@ -14,6 +14,7 @@ def anyio_backend() -> str:
 @pytest.fixture(scope="module", autouse=True)
 def setup_logging() -> None:
     import logging
+
     from mountory_core.logging import logger
 
     logger.setLevel(logging.DEBUG)

@@ -1,11 +1,13 @@
-from typing import Literal, Any
+from datetime import UTC, datetime, timedelta, timezone
+from typing import Any, Literal
+
 import pytest
+
 from mountory_core.common.parsing import (
-    parse_aware_datetime,
     empty_str_as_none,
+    parse_aware_datetime,
     parse_str_none_if_empty,
 )
-from datetime import datetime, UTC, timedelta, timezone
 
 
 @pytest.mark.parametrize("value", (None, ""))
@@ -18,7 +20,7 @@ def test_empty_str_as_none_as_none(value: Literal[""] | None) -> None:
 @pytest.mark.parametrize(
     "value",
     (
-        datetime.now(),
+        datetime.now(tz=UTC),
         ["array", "02"],
         {"set", "set2"},
         {"a": "dict"},
@@ -55,7 +57,7 @@ def test_parse_str_none_if_empty_as_none(value: Literal[""] | None) -> None:
 
 
 def test_datetime_as_aware_from_datetime_without_tz() -> None:
-    dt = datetime.now()
+    dt = datetime.now(tz=UTC)
     expected = dt.replace(tzinfo=UTC).isoformat()
 
     parsed = parse_aware_datetime(dt)

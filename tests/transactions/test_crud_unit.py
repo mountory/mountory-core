@@ -1,26 +1,22 @@
-from typing import Literal
-
-from mountory_core.testing.location import create_random_location
-from mountory_core.testing.activities import create_rndm_activity
-from mountory_core.transactions.types import TransactionCategory
-from datetime import datetime, timezone, timedelta
-
-from mountory_core.testing.utils import random_lower_string, random_email
 import uuid
-
-from sqlmodel.ext.asyncio.session import AsyncSession
-
-from mountory_core.transactions import crud
-from mountory_core.transactions.models import (
-    TransactionCreate,
-    TransactionUpdate,
-    Transaction,
-)
-from sqlmodel import Session
-from unittest.mock import MagicMock, AsyncMock
+from datetime import UTC, datetime, timedelta, timezone
+from typing import Literal
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from sqlmodel import Session
+from sqlmodel.ext.asyncio.session import AsyncSession
 
+from mountory_core.testing.activities import create_rndm_activity
+from mountory_core.testing.location import create_random_location
+from mountory_core.testing.utils import random_email, random_lower_string
+from mountory_core.transactions import crud
+from mountory_core.transactions.models import (
+    Transaction,
+    TransactionCreate,
+    TransactionUpdate,
+)
+from mountory_core.transactions.types import TransactionCategory
 from mountory_core.users.models import User
 
 
@@ -100,10 +96,10 @@ def test_create_transaction_data_set_user_id() -> None:
 
 def test_create_transaction_data_set_date_not_tz() -> None:
     db = MagicMock(spec=Session)
-    date = datetime.now()
+    date = datetime.now(tz=UTC)
     data = TransactionCreate(date=date)
 
-    expected = date.replace(tzinfo=timezone.utc)
+    expected = date.replace(tzinfo=UTC)
 
     transaction = crud.create_transaction(db=db, data=data)
     assert transaction.date == expected
@@ -115,7 +111,7 @@ def test_create_transaction_data_set_date_with_tz(offset: int) -> None:
     date = datetime.now(timezone(timedelta(hours=offset)))
     data = TransactionCreate(date=date)
 
-    expected = date.astimezone(timezone.utc)
+    expected = date.astimezone(UTC)
 
     transaction = crud.create_transaction(db=db, data=data)
     assert transaction.date == expected
@@ -256,9 +252,9 @@ def test_create_transaction_set_user() -> None:
 @pytest.mark.xfail()
 def test_create_transaction_set_date_not_tz() -> None:
     db = MagicMock(spec=Session)
-    date = datetime.now()
+    date = datetime.now(tz=UTC)
 
-    expected = date.replace(tzinfo=timezone.utc)
+    expected = date.replace(tzinfo=UTC)
 
     transaction = crud.create_transaction(db=db, date=date)
     assert transaction.date == expected
@@ -269,7 +265,7 @@ def test_create_transaction_set_date_with_tz(offset: int) -> None:
     db = MagicMock(spec=Session)
     date = datetime.now(timezone(timedelta(hours=offset)))
 
-    expected = date.astimezone(timezone.utc)
+    expected = date.astimezone(UTC)
 
     transaction = crud.create_transaction(db=db, date=date)
     assert transaction.date == expected
@@ -495,7 +491,7 @@ def test_update_transaction_no_updates() -> None:
         activity_id=uuid.uuid4(),
         location_id=uuid.uuid4(),
         user_id=uuid.uuid4(),
-        date=datetime.now(),
+        date=datetime.now(tz=UTC),
         amount=100,
         category=TransactionCategory.OTHER,
         description=random_lower_string(),
@@ -514,7 +510,7 @@ def test_update_transaction_set_all_none() -> None:
         activity_id=uuid.uuid4(),
         location_id=uuid.uuid4(),
         user_id=uuid.uuid4(),
-        date=datetime.now(),
+        date=datetime.now(tz=UTC),
         amount=100,
         category=TransactionCategory.OTHER,
         description=random_lower_string(),

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import UUID4, EmailStr, StringConstraints, Field
+from pydantic import UUID4, EmailStr, Field, StringConstraints
 
 PASSWORD_MIN_LENGTH = 10
 PASSWORD_MAX_LENGTH = 255

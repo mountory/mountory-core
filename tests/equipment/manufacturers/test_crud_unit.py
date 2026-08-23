@@ -7,14 +7,15 @@ We're mainly testing "control flow" where the result of the actual action is out
 For example, whether ``db.commit`` is called, when the database transaction should be commited.
 """
 
-from pydantic import HttpUrl
-
-from typing import Literal
-
 import uuid
+from typing import Literal
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from pydantic import HttpUrl
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from mountory_core.equipment.manufacturers import crud
 from mountory_core.equipment.manufacturers.models import (
     ManufacturerCreate,
     ManufacturerUpdate,
@@ -23,12 +24,7 @@ from mountory_core.equipment.manufacturers.types import (
     ManufacturerAccessDict,
     ManufacturerAccessRole,
 )
-
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
-from mountory_core.equipment.manufacturers import crud
-from mountory_core.testing.utils import random_lower_string, random_http_url
+from mountory_core.testing.utils import random_http_url, random_lower_string
 
 
 @pytest.mark.anyio

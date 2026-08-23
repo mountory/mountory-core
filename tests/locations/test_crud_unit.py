@@ -1,19 +1,18 @@
-from pydantic import HttpUrl
-
-from mountory_core.testing.location import create_random_location
-from mountory_core.activities.types import ActivityType
-from mountory_core.locations.types import LocationType
 import uuid
 from typing import Literal
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pydantic import HttpUrl
 from sqlmodel import Session
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from mountory_core.activities.types import ActivityType
 from mountory_core.locations import crud
-from mountory_core.locations.models import LocationCreate, LocationUpdate, Location
-from mountory_core.testing.utils import random_lower_string, random_http_url
+from mountory_core.locations.models import Location, LocationCreate, LocationUpdate
+from mountory_core.locations.types import LocationType
+from mountory_core.testing.location import create_random_location
+from mountory_core.testing.utils import random_http_url, random_lower_string
 
 
 def test_create_location_commit_default() -> None:
@@ -363,7 +362,6 @@ def test_update_location_no_updates() -> None:
 
     location = crud.update_location(db=db, location=existing)
 
-    assert location == location
     assert location.model_dump() == expected
 
 

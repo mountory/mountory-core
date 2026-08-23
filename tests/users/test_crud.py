@@ -1,17 +1,17 @@
+import uuid
 from typing import Literal
 
-from pytest import Subtests
-import uuid
-
 import pytest
+from pytest import Subtests
+from sqlalchemy import func
+from sqlmodel import Session, select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
 from mountory_core.security import verify_password
 from mountory_core.testing.user import CreateUserProtocol
 from mountory_core.testing.utils import random_email, random_lower_string
 from mountory_core.users import crud
 from mountory_core.users.models import User, UserCreate, UserUpdate
-from sqlalchemy import func
-from sqlmodel import Session, select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 @pytest.mark.anyio
@@ -215,7 +215,7 @@ async def test_read_users(
     _ = [create_user(commit=False) for _ in range(count)]
     db.commit()
 
-    res_users, res_count = await crud.read_users(db=async_db, skip=0, limit=100)
+    _, res_count = await crud.read_users(db=async_db, skip=0, limit=100)
 
     assert res_count == existing + count
 

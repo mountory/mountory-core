@@ -1,8 +1,9 @@
-from mountory_core.transactions.types import TransactionCategory
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
+from sqlmodel import Session, select
+
 from mountory_core.activities.models import Activity
 from mountory_core.locations.models import Location
 from mountory_core.testing.activities import CreateActivityProtocol
@@ -14,7 +15,7 @@ from mountory_core.transactions.models import (
     TransactionCreate,
     TransactionUpdate,
 )
-from sqlmodel import Session, select
+from mountory_core.transactions.types import TransactionCategory
 
 
 @pytest.mark.parametrize("model", (TransactionCreate, TransactionUpdate, Transaction))
@@ -263,7 +264,7 @@ def test_create_transaction_with_values(
 ) -> None:
     activity = create_activity(commit=False)
     location = create_location(commit=False)
-    date = datetime.now()
+    date = datetime.now(tz=UTC)
     amount = 5003
     category = TransactionCategory.OTHER
     description = random_lower_string()
@@ -289,7 +290,7 @@ def test_create_transaction_with_values(
     assert transaction.location == location
     assert transaction.amount == amount
     assert transaction.category == category
-    assert transaction.date == date.replace(tzinfo=timezone.utc)
+    assert transaction.date == date.replace(tzinfo=UTC)
     assert transaction.description == description
     assert transaction.note == note
 
@@ -303,7 +304,7 @@ def test_update_transaction(db: Session, with_previous: bool) -> None:
     if with_previous:
         transaction = Transaction(
             amount=32455223,
-            date=datetime(year=2024, month=12, day=31),
+            date=datetime(year=2024, month=12, day=31, tzinfo=UTC),
             description=random_lower_string(),
             note=random_lower_string(),
         )
@@ -319,7 +320,7 @@ def test_update_transaction(db: Session, with_previous: bool) -> None:
     values = {
         "amount": 5003,
         "category": "Other",
-        "date": datetime(year=2025, month=7, day=23),
+        "date": datetime(year=2025, month=7, day=23, tzinfo=UTC),
         "description": random_lower_string(),
         "note": random_lower_string(),
     }
@@ -334,7 +335,7 @@ def test_update_transaction(db: Session, with_previous: bool) -> None:
     assert db_transaction.location is None
     assert db_transaction.amount == values["amount"]
     assert db_transaction.category == values["category"]
-    assert db_transaction.date == values["date"].replace(tzinfo=timezone.utc)
+    assert db_transaction.date == values["date"].replace(tzinfo=UTC)
     assert db_transaction.description == values["description"]
     assert db_transaction.note == values["note"]
 

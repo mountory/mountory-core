@@ -1,14 +1,13 @@
-import pytest
-from sqlmodel.ext.asyncio.session import AsyncSession
 import uuid
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from sqlmodel import Session
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from mountory_core.activities import crud
-from mountory_core.testing.utils import random_lower_string
-from unittest.mock import MagicMock, AsyncMock
-
-from sqlmodel import Session
-
 from mountory_core.activities.models import ActivityCreate, ActivityUpdate
+from mountory_core.testing.utils import random_lower_string
 
 
 def test_create_activity_commit_default() -> None:

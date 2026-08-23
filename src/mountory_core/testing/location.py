@@ -1,12 +1,12 @@
-from pydantic import HttpUrl
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Protocol
 
+from pydantic import HttpUrl
 from sqlmodel import Session, col, delete
 
 from mountory_core.locations.models import Location, LocationUserFavorite
-from mountory_core.locations.types import LocationType, LocationId
+from mountory_core.locations.types import LocationId, LocationType
 from mountory_core.testing.utils import random_http_url, random_lower_string
 from mountory_core.users.models import User
 from mountory_core.users.types import UserId

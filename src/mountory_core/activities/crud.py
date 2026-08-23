@@ -1,13 +1,11 @@
-from typing import TypedDict
-from mountory_core.common.parsing import empty_str_as_none
-from typing_extensions import deprecated
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
-from typing import Literal, overload, NotRequired
+from typing import Literal, NotRequired, TypedDict, overload
 
 from sqlalchemy import distinct, insert
 from sqlmodel import Session, col, delete, func, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
+from typing_extensions import deprecated
 
 from mountory_core.activities.models import (
     Activity,
@@ -17,11 +15,12 @@ from mountory_core.activities.models import (
     ActivityUserLink,
 )
 from mountory_core.activities.types import ActivityId, ActivityType
+from mountory_core.common.crud import create_filter_in_with_none
+from mountory_core.common.parsing import empty_str_as_none
 from mountory_core.locations.models import Location
 from mountory_core.locations.types import LocationId
 from mountory_core.logging import logger
 from mountory_core.users.types import UserId
-from mountory_core.common.crud import create_filter_in_with_none
 
 
 class UpdateActivityValues(TypedDict):

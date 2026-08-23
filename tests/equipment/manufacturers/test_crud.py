@@ -1,13 +1,13 @@
+import uuid
 from typing import Literal
 
-from pydantic import HttpUrl
-
-from mountory_core.users.models import User
-from pydantic.dataclasses import dataclass
-
-import uuid
-
 import pytest
+from pydantic import HttpUrl
+from pydantic.dataclasses import dataclass
+from sqlalchemy import delete
+from sqlmodel import and_, col, or_, select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
 from mountory_core.equipment.manufacturers import crud
 from mountory_core.equipment.manufacturers.models import (
     Manufacturer,
@@ -26,10 +26,7 @@ from mountory_core.testing.utils import (
     random_http_url,
     random_lower_string,
 )
-from sqlalchemy import delete
-from sqlmodel import and_, col, or_, select
-from sqlmodel.ext.asyncio.session import AsyncSession
-
+from mountory_core.users.models import User
 from mountory_core.users.types import UserId
 
 
