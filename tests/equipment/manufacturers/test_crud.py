@@ -899,7 +899,7 @@ async def test_update_manufacturer_data_remove_website(
     value: Literal[""] | None,
 ) -> None:
     existing = await create_manufacturer(website=initial_value)
-    update = ManufacturerUpdate(website=value)  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+    update = ManufacturerUpdate(website=value)  # type: ignore[arg-type]
 
     await crud.update_manufacturer_by_id(
         db=async_db, manufacturer_id=existing.id, data=update

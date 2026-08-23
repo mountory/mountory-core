@@ -58,7 +58,7 @@ def _create_location(
     location = Location(
         name=name,
         abbreviation=abbreviation,
-        website=website,  # ty:ignore[invalid-argument-type]
+        website=website,
         parent_id=parent_id,
     )
     if id_:

@@ -114,7 +114,7 @@ def test_create_location_data_set_website(db: Session) -> None:
 def test_create_location_data_set_website_parse_none(
     db: Session, value: Literal[""] | None
 ) -> None:
-    data = LocationCreate(name=random_lower_string(), website=value)  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    data = LocationCreate(name=random_lower_string(), website=value)  # type: ignore[arg-type]
     location = crud.create_location(db=db, data=data)
     assert location.website is None
 
@@ -556,7 +556,7 @@ def test_update_location_data_remove_website(
     website: Literal[""] | None,
 ) -> None:
     existing = create_location(website=random_http_url())
-    data = LocationUpdate(website=website)  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    data = LocationUpdate(website=website)  # type: ignore[arg-type]
 
     location = crud.update_location(db=db, location=existing, data=data)
     assert location.website is None
@@ -967,7 +967,7 @@ def test_update_location_by_id_data_remove_website(
     website: Literal[""] | None,
 ) -> None:
     existing = create_location(website=random_http_url())
-    data = LocationUpdate(website=website)  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    data = LocationUpdate(website=website)  # type: ignore[arg-type]
 
     crud.update_location_by_id(db=db, location_id=existing.id, data=data)
     assert existing.website is None

@@ -293,7 +293,7 @@ def test_update_location_data_remove_website(
     db = MagicMock(spec=Session)
     db.exec.return_value.one_or_none.return_value = existing
 
-    data = LocationUpdate(website=website)  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    data = LocationUpdate(website=website)  # type: ignore[arg-type]
     location = crud.update_location(db=db, location=existing, data=data)
 
     assert location.website is None
