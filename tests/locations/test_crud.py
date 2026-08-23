@@ -36,9 +36,7 @@ def test_create_location(db: Session) -> None:
     abbreviation = random_lower_string()
     website = random_http_url()
     location_create = LocationCreate(
-        name=name,
-        abbreviation=abbreviation,
-        website=website,  # type:ignore[arg-type] # ty:ignore[invalid-argument-type]
+        name=name, abbreviation=abbreviation, website=website
     )
     location = crud.create_location(db=db, data=location_create)
     assert location.name == name
@@ -103,7 +101,7 @@ def test_create_location_data_set_abbreviation_parse_none(
 
 
 def test_create_location_data_set_website(db: Session) -> None:
-    data = LocationCreate(name=random_lower_string(), website=random_http_url())  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    data = LocationCreate(name=random_lower_string(), website=random_http_url())
     location = crud.create_location(db=db, data=data)
     assert location.website == data.website
 
@@ -199,7 +197,7 @@ def test_create_location_set_abbreviation_parse_none(
 @pytest.mark.parametrize("value", (random_http_url(), HttpUrl(random_http_url())))
 def test_create_location_set_website(db: Session, value: HttpUrl | str) -> None:
     location = crud.create_location(db=db, name=random_lower_string(), website=value)
-    assert str(location.website) == str(value)
+    assert location.website == value
 
     # cleanup
     db.delete(location)
@@ -545,7 +543,7 @@ def test_update_location_data_set_website(
     db: Session, create_location: CreateLocationProtocol
 ) -> None:
     existing = create_location()
-    data = LocationUpdate(website=random_http_url())  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    data = LocationUpdate(website=random_http_url())
 
     location = crud.update_location(db=db, location=existing, data=data)
     assert location.website == data.website
@@ -716,7 +714,7 @@ def test_update_location_set_website(
 
     location = crud.update_location(db=db, location=existing, website=website)
     assert location == existing
-    assert str(location.website) == str(website)
+    assert location.website == website
 
     db_location = db.get(Location, existing.id)
     assert db_location == existing
@@ -956,7 +954,7 @@ def test_update_location_by_id_data_set_website(
     db: Session, create_location: CreateLocationProtocol
 ) -> None:
     existing = create_location()
-    data = LocationUpdate(website=random_http_url())  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    data = LocationUpdate(website=random_http_url())
 
     crud.update_location_by_id(db=db, location_id=existing.id, data=data)
     assert existing.website == data.website

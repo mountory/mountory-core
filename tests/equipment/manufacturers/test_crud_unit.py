@@ -174,7 +174,7 @@ async def test_create_manufacturer_set_website_str() -> None:
 
     manufacturer = await crud.create_manufacturer(db=db, name=name, website=website)
 
-    assert str(manufacturer.website) == website
+    assert manufacturer.website == website
 
 
 @pytest.mark.anyio

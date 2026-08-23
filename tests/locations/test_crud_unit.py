@@ -279,7 +279,7 @@ def test_update_location_data_set_website() -> None:
     db = MagicMock(spec=Session)
     db.exec.return_value.one_or_none.return_value = existing
 
-    data = LocationUpdate(website=random_http_url())  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    data = LocationUpdate(website=random_http_url())
     location = crud.update_location(db=db, location=existing, data=data)
 
     assert location.website == data.website

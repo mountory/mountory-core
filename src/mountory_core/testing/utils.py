@@ -17,12 +17,12 @@ def random_email() -> EmailStr:
     return f"{random_lower_string()}@{random_lower_string()}.com"
 
 
-def random_url(scheme: Literal["http", "https"] = "http") -> str:
-    return AnyUrl(f"{scheme}://{random_lower_string(15)}.com").unicode_string()
+def random_url(scheme: Literal["http", "https"] = "http") -> AnyUrl:
+    return AnyUrl(f"{scheme}://{random_lower_string(15)}.com")
 
 
-def random_http_url() -> str:
-    return HttpUrl(f"{random_url()}").unicode_string()
+def random_http_url(scheme: Literal["http", "https"] = "http") -> HttpUrl:
+    return HttpUrl(random_url(scheme))
 
 
 @contextmanager

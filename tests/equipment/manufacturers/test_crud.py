@@ -144,7 +144,7 @@ async def test_create_manufacturer_set_website(async_db: AsyncSession) -> None:
         db=async_db, name=name, website=website
     )
 
-    assert str(manufacturer.website) == website
+    assert manufacturer.website == website
 
     db_manufacturer = await async_db.get(Manufacturer, manufacturer.id)
     assert db_manufacturer == manufacturer
@@ -689,7 +689,7 @@ async def test_update_manufacturer_update_website(
     )
 
     await async_db.refresh(existing)
-    assert str(existing.website) == website
+    assert existing.website == website
 
 
 @pytest.mark.anyio
@@ -879,7 +879,7 @@ async def test_update_manufacturer_data_update_website(
 ) -> None:
     existing = await create_manufacturer(website=initial_value)
 
-    update = ManufacturerUpdate(website=random_http_url())  # type: ignore[arg-type] # ty:ignore[invalid-argument-type]
+    update = ManufacturerUpdate(website=random_http_url())
 
     await crud.update_manufacturer_by_id(
         db=async_db, manufacturer_id=existing.id, data=update

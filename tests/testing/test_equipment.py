@@ -52,7 +52,7 @@ def test_create_rndm_manufacturer_overrides(hidden: bool) -> None:
     assert manufacturer.short_name == short_name
     assert manufacturer.description == description
     assert isinstance(manufacturer.website, HttpUrl)
-    assert manufacturer.website.unicode_string() == website
+    assert manufacturer.website == website
     assert manufacturer.hidden == hidden
 
 
@@ -97,7 +97,7 @@ async def test_create_db_manufacturer_overrides(
     assert manufacturer.short_name == short_name
     assert manufacturer.description == description
     assert isinstance(manufacturer.website, HttpUrl)
-    assert manufacturer.website.unicode_string() == website
+    assert manufacturer.website == website
     assert manufacturer.hidden == hidden
 
     # cleanup
@@ -205,7 +205,7 @@ async def test_create_manufacturer_context_overrides(
         assert manufacturer.short_name == short_name
         assert manufacturer.description == description
         assert isinstance(manufacturer.website, HttpUrl)
-        assert manufacturer.website.unicode_string() == website
+        assert manufacturer.website == website
         assert manufacturer.hidden == hidden
 
     # cleanup
