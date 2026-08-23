@@ -36,7 +36,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup Python
+      - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
@@ -50,15 +50,15 @@ jobs:
         run: uv sync --locked --all-extras --dev
       - run: docker compose -f docker-compose.testing.yml down -v --remove-orphans
       - run: docker compose -f docker-compose.testing.yml up -d db
-      - name: Run tests
+      - name: Run tests for ${{ matrix.python-version }}
         run: |
           uv run --frozen -- coverage run --source=src -m pytest tests
           uv run --frozen -- coverage report --show-missing
-          uv run --frozen -- coverage html --title "Coverage for ${{ github.sha}}"
+          uv run --frozen -- coverage html --title "Coverage for ${{ github.sha }} (${{ matrix.python-version }})"
       - run: docker compose -f docker-compose.testing.yml down -v --remove-orphans
       - name: Store coverage files
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: coverage-html
+          name: coverage-html-${{ matrix.python-version }}
           path: htmlcov
           include-hidden-files: true
